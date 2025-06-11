@@ -1,0 +1,1 @@
+# This file makes 'message_pack_parser' a Python package.
