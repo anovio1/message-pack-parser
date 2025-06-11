@@ -59,7 +59,7 @@ class Unit_economy_Schema(BaseModel):
 class Unit_events_Schema(BaseModel):
     frame: int
     unit_id: int
-    unitDefID: Optional[int] = None
+    unit_def_id: Optional[int] = None
     unit_team_id: Optional[int] = None
     x: int
     y: int
@@ -84,7 +84,7 @@ class Damage_log_Schema(BaseModel):
     attacker_def_id: Optional[int] = None
     weapon_def_id: int
     projectile_id: int
-    damage: int
+    damage: float
     is_paralyzer: bool
     victim_pos_x: int
     victim_pos_y: int

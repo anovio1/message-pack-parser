@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import List, Dict, Tuple
+from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import typer
@@ -15,38 +15,55 @@ from message_pack_parser.core.decoder import stream_decode_aspect
 from message_pack_parser.core.cache_manager import save_to_cache, load_from_cache
 from message_pack_parser.core.value_transformer import stream_transform_aspect
 from message_pack_parser.core.dataframe_creator import create_polars_dataframe_for_aspect
-from message_pack_parser.core.aggregator import perform_aggregations
+from message_pack_parser.core.aggregator import perform_aggregations, STATS_REGISTRY
 from message_pack_parser.core.output_generator import generate_output
 from message_pack_parser.core.output_strategies import (
     OutputStrategy,
-    MessagePackGzipStrategy,
-    ParquetDirectoryStrategy,
-    JsonLinesGzipStrategy
+    OutputFormat,
+    STRATEGY_MAP
 )
 from message_pack_parser.schemas.aspects_raw import BaseAspectDataPointRaw
 from message_pack_parser.core.exceptions import ParserError, CacheValidationError
 from message_pack_parser.utils.config_validator import validate_configurations
 
-# Enum for CLI choices
-class OutputFormat(str, Enum):
-    MPK_GZIP = "mpk-gzip"
-    PARQUET_DIR = "parquet-dir"
-    JSONL_GZIP = "jsonl-gzip"
-
-# Map for strategy selection
-STRATEGY_MAP: Dict[OutputFormat, type[OutputStrategy]] = {
-    OutputFormat.MPK_GZIP: MessagePackGzipStrategy,
-    OutputFormat.PARQUET_DIR: ParquetDirectoryStrategy,
-    OutputFormat.JSONL_GZIP: JsonLinesGzipStrategy,
-}
-
 
 app = typer.Typer(
-    help="A production-grade, parallelized parser for game replay data.",
+    help="A parallelized parser for game replay data.",
     context_settings={"help_option_names": ["-h", "--help"]},
     add_completion=False
 )
 logger = logging.getLogger(__name__)
+
+
+# --- CLI Validation Callback ---
+def _validate_stats_callback(
+    # Typer passes context and parameter info automatically.
+    # We don't use them here, but including them in the signature
+    # ensures Typer correctly assigns the 'value' parameter.
+    ctx: typer.Context,
+    param: typer.CallbackParam,
+    value: Optional[List[str]]
+):
+    """
+    Callback to validate that provided stat names are valid.
+    """
+    if not value:
+        # If the user provides no --compute-stat options, the value is None.
+        # We must return an empty list to satisfy Typer's expectation of a sequence.
+        return []
+    
+    valid_stats = STATS_REGISTRY.keys()
+    for stat_name in value:
+        if stat_name not in valid_stats:
+            raise typer.BadParameter(f"Invalid stat '{stat_name}'. Choose from: {list(valid_stats)}")
+    return value
+
+
+# Dynamically generate help text for the --compute-stat option
+stats_help_text = "Stat to compute. Use 'parser list-stats' to see all options. If not provided, default stats will be computed."
+for name, stat in STATS_REGISTRY.items():
+    stats_help_text += f"- {name}: {stat.description}\n"
+
 
 # --- PARALLEL EXECUTION LOGIC ---
 def _parallel_decode_and_transform(aspect_name: str, raw_bytes: bytes, skip_on_error: bool):
@@ -154,6 +171,12 @@ def run(
     cache_dir: str = typer.Option(..., "--cache-dir", "-c", help="Directory for intermediate cached data."),
     output_dir: str = typer.Option(..., "--output-dir", "-o", help="Directory for the final compressed output."),
     output_format: OutputFormat = typer.Option(OutputFormat.MPK_GZIP, "--output-format", "-f", help="The format for the final output.", case_sensitive=False),
+    compute_stat: Optional[List[str]] = typer.Option(
+        [], "--compute-stat", "-s",
+        help=stats_help_text,
+        callback=_validate_stats_callback,
+        show_default=False # Prevents showing 'None' as default in help
+    ),
     serial: bool = typer.Option(
         False, 
         "--serial", 
@@ -203,13 +226,14 @@ def run(
         # --- Steps 6 & 7 are always serial ---
         logger.info("--- [Step 6] Data Aggregation ---")
         stage_start_time = time.perf_counter()
-        aggregated_df, unaggregated_df = perform_aggregations(dataframes, run_demo_aggregation)
+        stats_to_run = compute_stat if compute_stat is not None else []
+        aggregated_stats, unaggregated_df = perform_aggregations(dataframes, stats_to_run)
         logger.info(f"Stage complete in {time.perf_counter() - stage_start_time:.2f}s.")
         
         logger.info("--- [Step 7] Final Output Generation ---")
         stage_start_time = time.perf_counter()
         strategy_instance = STRATEGY_MAP[output_format]()
-        generate_output(strategy_instance, aggregated_df, unaggregated_df, output_dir, replay_id)
+        generate_output(strategy_instance, aggregated_stats, unaggregated_df, output_dir, replay_id)
         logger.info(f"Stage complete in {time.perf_counter() - stage_start_time:.2f}s.")
 
     except ParserError as e:
@@ -231,6 +255,14 @@ def cli_list_aspects():
     print("Recognized aspect schemas:")
     for aspect in list_recognized_aspects():
         print(f"  - {aspect}")
+
+@app.command(name="list-stats")
+def cli_list_stats():
+    """Lists all available aggregation statistics with their descriptions."""
+    typer.echo("Available aggregation stats (--compute-stat or -s):")
+    for name, stat in STATS_REGISTRY.items():
+        default_marker = "[DEFAULT]" if stat.default_enabled else ""
+        typer.echo(f"  - {name:<25} {default_marker:<10} {stat.description}")
 
 if __name__ == "__main__":
     app()

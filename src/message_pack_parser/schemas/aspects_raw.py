@@ -103,7 +103,7 @@ class Team_stats_Schema_Raw(BaseAspectDataPointRaw):
     metal_Rexcess: int = Field(metadata={"dequantize_by": 10.0})
     energy_current: int = Field(metadata={"dequantize_by": 10.0})
     energy_storage: int = Field(metadata={"dequantize_by": 10.0})
-    energy_pull: int = Field(metadata={"dequantize_by": 10.0})
+    energy_pull: int = Field(json_schema_extra={"dequantize_by": 10.0})
     energy_income: int = Field(metadata={"dequantize_by": 10.0})
     energy_expense: int = Field(metadata={"dequantize_by": 10.0})
     energy_share: int = Field(metadata={"dequantize_by": 10.0})
@@ -129,7 +129,7 @@ class Unit_economy_Schema_Raw(BaseAspectDataPointRaw):
 class Unit_events_Schema_Raw(BaseAspectDataPointRaw):
     frame: int
     unit_id: int
-    unitDefID: Optional[int] = None
+    unit_def_id: Optional[int] = None
     unit_team_id: Optional[int] = None
     x: int
     y: int
@@ -183,7 +183,7 @@ class Damage_log_Schema_Raw(BaseAspectDataPointRaw):
     attacker_def_id: Optional[int] = None
     weapon_def_id: int
     projectile_id: int
-    damage: int
+    damage: int = Field(metadata={"dequantize_by": 10.0})
     is_paralyzer: bool
     victim_pos_x: int
     victim_pos_y: int

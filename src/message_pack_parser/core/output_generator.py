@@ -1,16 +1,23 @@
 """
 Step 7: Final Output Generation Orchestrator
+
+This module acts as the entry point for the final output generation step.
+Its sole responsibility is to invoke the `write` method of a given
+output strategy, passing along the computed data streams.
 """
 import logging
 import polars as pl
+from typing import Dict
 
+# The core logic now resides in the strategy classes
 from message_pack_parser.core.output_strategies import OutputStrategy
+from message_pack_parser.core.exceptions import OutputGenerationError
 
 logger = logging.getLogger(__name__)
 
 def generate_output(
     strategy: OutputStrategy,
-    aggregated_df: pl.DataFrame,
+    aggregated_stats: Dict[str, pl.DataFrame],
     unaggregated_df: pl.DataFrame,
     output_directory: str,
     replay_id: str
@@ -18,25 +25,28 @@ def generate_output(
     """
     Orchestrates the final output generation by executing a provided strategy.
 
-    This function is decoupled from the specific output format.
+    This function is decoupled from any specific output format, delegating
+    the implementation details to the strategy object.
 
     Args:
         strategy: An instance of a class that implements the OutputStrategy interface.
-        aggregated_df: The DataFrame containing aggregated data.
+        aggregated_stats: A dictionary mapping stat names to their aggregated DataFrame.
         unaggregated_df: The DataFrame containing detailed, unaggregated data.
         output_directory: The base directory where output should be saved.
         replay_id: The unique identifier for the replay.
     """
-    logger.info("Starting Step 7: Final Output Generation")
+    logger.info(f"Executing output generation using '{strategy.__class__.__name__}'.")
+    
     try:
+        # Delegate the entire write operation to the strategy object.
+        # Its signature perfectly matches what we pass here.
         strategy.write(
-            aggregated_df=aggregated_df,
+            aggregated_stats=aggregated_stats,
             unaggregated_df=unaggregated_df,
             output_directory=output_directory,
             replay_id=replay_id
         )
     except Exception as e:
-        # The specific strategy will raise a more detailed error
-        logger.error(f"Output generation failed: {e}", exc_info=True)
-        # Re-raise to be caught by main error handler
-        raise e
+        # Catch exceptions from the strategy and re-raise as a generic error
+        # for the main error handler. The strategy will have logged specifics.
+        raise OutputGenerationError(f"Output generation failed for strategy '{strategy.__class__.__name__}'") from e

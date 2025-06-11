@@ -1,142 +1,134 @@
-# Developer Documentation: Message Pack Parser
+# Developer Documentation (v3.1)
 
-This document provides an in-depth explanation of the Message Pack Parser's architecture, core concepts, and extension points. It is intended for developers who will be maintaining or extending the application.
+This document provides a comprehensive overview of the Message Pack Parser's architecture, data flow, key design patterns, and core mechanics.
 
-## 1. Design Philosophy
+- For a guide focused purely on adding new statistics, see `docs/aggregator_guide.md`.
+- For a complete list of all available data fields and their schemas, see the `docs/data_dictionary.md`.
 
-The application is built on three core principles:
+## 1. High-Level Architecture & Core Concepts
 
-1.  **Single Source of Truth:** Configurations should be declared once, as close to the data they describe as possible. This prevents configuration drift and reduces the maintenance burden.
-2.  **Robust Data Contracts:** The structure and type of data at every stage of the pipeline must be explicitly defined and validated. This catches errors early and makes the data flow predictable.
-3.  **Performance by Design:** The architecture should be designed to handle large datasets efficiently, using streaming and parallelism where appropriate, without sacrificing clarity.
+The application is a modular, 7-step pipeline designed for performance, robustness, and extensibility. The core orchestration logic resides in **`src/message_pack_parser/main.py`**, which manages the overall flow via the `parser` command-line entry point.
 
-## 2. Architectural Overview: The 7-Step Pipeline
+### 1.1. Execution Modes: Parallel vs. Serial
 
-The application orchestrates a 7-step pipeline, with data transforming at each stage. This flow is managed by `src/message_pack_parser/main.py`.
+The pipeline can run in two distinct modes, controlled by the `--serial` CLI flag:
 
--   **Step 1: Ingestion (`core/ingestion.py`)**
-    -   **Input:** Directory paths (from CLI).
-    -   **Process:** Loads all `.mpk` files into memory.
-    -   **Output:** `Dict[str, bytes]` (A dictionary mapping aspect names to their raw binary content).
+*   **Parallel Mode (Default):** For maximum performance on multi-core systems. It uses a `ProcessPoolExecutor` to run the most intensive steps (Decode, Transform, DataFrame Creation) concurrently for each aspect file.
+    *   **Heuristic:** To avoid the overhead of spawning processes for tiny files, a threshold (`SERIAL_PROCESSING_THRESHOLD_BYTES`) is used. Files smaller than this are processed serially even in parallel mode.
+    *   **Trade-off:** Caching is **disabled** because the parallel worker (_process_aspect_serially) combines the Decode, Transform, and DataFrame Creation steps into a single unit of work. The current caching layer is designed to save the intermediate artifact after the Decode step, which is bypassed in the fully-pipelined parallel path.
 
--   **Step 2: Decoding (`core/decoder.py`)**
-    -   **Input:** The raw binary data from Step 1.
-    -   **Process:** Uses `msgpack.Unpacker` to stream-decode the bytes. Each record is validated against its corresponding schema in `schemas/aspects_raw.py`.
-    -   **Output:** A stream of Pydantic `BaseAspectDataPointRaw` model instances.
+*   **Serial Mode (`--serial`):** For debugging, reproducibility, and enabling the cache. All steps are executed in a single thread. This mode is required for the caching layer to function and is ideal for development and repeated runs on the same dataset.
 
--   **Step 3: Caching (`core/cache_manager.py`)**
-    -   **Input:** Decoded raw Pydantic models from Step 2.
-    -   **Process:** Serializes the raw models and saves them to a versioned cache file. On subsequent runs, it attempts to load from this cache, validating the version hash to prevent stale data.
-    -   **Output:** A `.mpkcache` file on disk, or a stream of Pydantic raw models loaded from it.
+### 1.2. Streaming Design Pattern
 
--   **Step 4: Value Transformation (`core/value_transformer.py`)**
-    -   **Input:** A stream of raw Pydantic models.
-    -   **Process:** Iterates through the stream, applying dequantization and enum mapping rules derived from the schema metadata. The transformed data is validated against "clean" schemas from `schemas/aspects.py`.
-    -   **Output:** A stream of Pydantic `BaseAspectDataPoint` (clean) model instances.
+To handle potentially very large aspect files with minimal memory overhead, the core processing steps are designed as a **streaming pipeline**.
 
--   **Step 5: DataFrame Creation (`core/dataframe_creator.py`)**
-    -   **Input:** A list of clean Pydantic models (the stream from Step 4 is consumed).
-    -   **Process:** Converts the list of Pydantic models into a Polars DataFrame, applying an *explicitly derived Polars schema* for type safety.
-    -   **Output:** A `polars.DataFrame` object.
+*   The `decoder.py` module uses `msgpack.Unpacker` to yield one raw data record at a time from the input bytes, rather than loading the entire file's contents into a list.
+*   The `value_transformer.py` module consumes this iterator, transforms one record, and yields one clean record.
+*   This "iterator-in, iterator-out" pattern ensures that only a single record is held in memory at any given time during these intensive steps, allowing the application to process files that are much larger than available RAM.
 
--   **Step 6: Aggregation (`core/aggregator.py`)**
-    -   **Input:** A dictionary of DataFrames, keyed by aspect name.
-    -   **Process:** This is the primary extension point for domain logic. It performs joins, aggregations, and calculations to produce meaningful summary data.
-    -   **Output:** A tuple containing two DataFrames: `(aggregated_df, unaggregated_df)`.
+### 1.3. Core Design Pattern: Schema as Single Source of Truth
 
--   **Step 7: Output Generation (`core/output_generator.py`)**
-    -   **Input:** The two DataFrames from Step 6.
-    -   **Process:** Converts the DataFrames to a dictionary format, combines them with a metadata `map`, serializes the entire object with MessagePack, and compresses it with Gzip.
-    -   **Output:** The final `.mpk.gz` artifact.
+A key architectural principle is avoiding configuration drift. The definition of the raw data, including all transformation rules, is centralized in one place.
 
-## 3. Core Concepts & Design Patterns
-
-### 3.1. Schema-Driven Configuration (Single Source of Truth)
-
-This is the most important design pattern in the application. We avoid separate, hard-to-maintain config files (like the old `dequantization_config.py`) by embedding transformation rules directly into the raw Pydantic schemas.
-
-**How it works:**
-1.  **Declaration:** In `schemas/aspects_raw.py`, we use `pydantic.Field` to attach metadata to specific fields.
-    ```python
-    # From aspects_raw.py
-    class Construction_log_Schema_Raw(BaseAspectDataPointRaw):
-        event: int = Field(metadata={'enum_map': ('event', ConstructionActionsEnum)})
+*   **File:** `src/message_pack_parser/schemas/aspects_raw.py`
+*   **Mechanism:** This file defines Pydantic models for the raw data. Transformation rules are embedded directly into these models using the `Field(metadata={...})` attribute.
+    *   **Example (Dequantization):**
+        ```python
         buildpower: int = Field(metadata={'dequantize_by': 1000.0})
-    ```
-2.  **Introspection:** At startup, `config/dynamic_config_builder.py` runs. It iterates through all schemas defined in `ASPECT_TO_RAW_SCHEMA_MAP` and introspects the `metadata` of each field.
-3.  **Dynamic Generation:** It populates two dictionaries, `DEQUANTIZATION_CONFIG` and `ASPECT_ENUM_MAPPINGS`, based on the metadata it finds.
-4.  **Usage:** The `core/value_transformer.py` module imports and uses these dynamically generated dictionaries to apply the correct transformations.
+        ```
+    *   **Example (Enum Mapping):**
+        ```python
+        cmd_type_id: int = Field(metadata={'enum_map': ('cmd_name', CommandsEnum)})
+        ```
+*   **Dynamic Configuration Builder:** The module `src/message_pack_parser/config/dynamic_config_builder.py` runs at application startup. It introspects the `metadata` from all schemas in `aspects_raw.py` and dynamically generates the `DEQUANTIZATION_CONFIG` and `ASPECT_ENUM_MAPPINGS` dictionaries used by the transformer.
+*   **Benefit:** To change a transformation rule, you only need to modify the schema definition in `aspects_raw.py`. The rest of the pipeline adapts automatically.
 
-**Benefits:**
--   To change a rule, you only edit one place: the schema definition itself.
--   It's impossible for the transformation configuration to become out of sync with the data schema.
--   The configuration is self-documenting, as it lives right next to the field it affects.
+## 2. Detailed Pipeline Data Flow
 
-### 3.2. Streaming and Parallel Processing
+This section details the exact inputs and outputs for each step of the pipeline.
 
-To handle large datasets efficiently, the pipeline combines streaming with process-based parallelism.
+### Step 1: File Ingestion
+*   **Module:** `src/core/ingestion.py` (`load_mpk_files`)
+*   **Input:** `List[str]` (Directory paths from the CLI).
+*   **Process:** Scans directories for `.mpk` files and reads their content.
+*   **Output:** `Dict[str, bytes]` (A dictionary mapping aspect names to their raw binary content).
 
--   **Streaming:** For individual large files, `core/decoder.py` uses `msgpack.Unpacker`. This reads the file in chunks and `yield`s one record at a time, preventing the entire file's decoded contents from being loaded into memory. `core/value_transformer.py` is also designed to operate on these streams (iterators).
+### Step 2: Decoding
+*   **Module:** `src/core/decoder.py` (`stream_decode_aspect`)
+*   **Input:** `bytes` (The raw binary content of a single aspect file).
+*   **Process:** Uses `msgpack.Unpacker` to decode the binary data. Each resulting record (a `list` of values) is validated and converted into a Pydantic model instance using the schemas from `aspects_raw.py`.
+*   **Output:** `Iterator[BaseAspectDataPointRaw]` (A stream of Pydantic models representing the validated raw data).
 
--   **Parallelism:** For processing many aspect files at once, `main.py` uses `concurrent.futures.ProcessPoolExecutor`.
-    -   The `_process_aspect_serially` function encapsulates the full pipeline for a single aspect (decode -> transform -> dataframe).
-    -   A **heuristic** (`SERIAL_PROCESSING_THRESHOLD_BYTES`) is used to prevent the overhead of creating new processes for tiny files. Small files are processed in the main thread.
-    -   Large files are submitted as jobs to the process pool. A progress bar from the `rich` library provides user feedback.
+### Step 3: Caching
+*   **Module:** `src/core/cache_manager.py`
+*   **Functionality:** This step is only active in **Serial Mode**.
+*   **Save Process:**
+    *   **Input:** The fully consumed stream from Step 2, collected into a `Dict[str, List[BaseAspectDataPointRaw]]`.
+    *   **Process:** Generates a hash of all critical source files (`schemas`, `core` logic) to create a `pipeline_version`. The Pydantic models are serialized to dictionaries and packed into a versioned MessagePack file.
+    *   **Output:** A `.mpkcache` file on disk.
+*   **Load Process:**
+    *   **Input:** `replay_id` and `cache_dir`.
+    *   **Process:** Reads the cache file, compares its `pipeline_version` hash with the current one. If they match, it deserializes the data back into Pydantic raw models.
+    *   **Output:** `Dict[str, List[BaseAspectDataPointRaw]]` or `None` if the cache is stale, missing, or corrupt.
 
-### 3.3. Error Handling Hierarchy
+### Step 4: Value Transformation
+*   **Module:** `src/core/value_transformer.py` (`stream_transform_aspect`)
+*   **Input:** `Iterator[BaseAspectDataPointRaw]` (The stream from Step 2).
+*   **Process:** Consumes one raw Pydantic model at a time. It uses the dynamically generated configuration to dequantize values and map integer IDs to `Enum` members. The resulting dictionary is then validated against the corresponding "clean" schema.
+*   **Output:** `Iterator[BaseAspectDataPoint]` (A stream of Pydantic models representing the clean, analytically-ready data).
 
-The `core/exceptions.py` file defines a set of custom exceptions that inherit from a base `ParserError`. This allows the `main.py` orchestrator to have a single, clean `try...except ParserError` block to catch any known, "expected" failure from the pipeline and exit gracefully. Unhandled `Exception`s are caught separately as a last resort, indicating a potential bug.
+### Step 5: DataFrame Creation
+*   **Module:** `src/core/dataframe_creator.py` (`create_polars_dataframe_for_aspect`)
+*   **Input:** `List[BaseAspectDataPoint]` (The fully consumed stream from Step 4).
+*   **Process:**
+    1.  Derives an explicit Polars schema (e.g., `{'frame': pl.Int64, 'cmd_name': pl.Categorical}`) from the Pydantic clean model's type hints.
+    2.  Converts the `Enum` members in the Pydantic models to their string names (e.g., `<CommandsEnum.MOVE: 8>` becomes `"MOVE"`).
+    3.  Loads the resulting list of dictionaries into a Polars DataFrame using the explicit schema for type safety.
+*   **Output:** `pl.DataFrame`.
 
-## 4. How to Extend the Parser
+### Step 6: Aggregation
+*   **Modules:** `src/core/aggregator.py` (Orchestrator) and the `src/core/stats/` package (Implementations).
+*   **Process:** This step follows a "plugin" architecture:
+    1.  The main `aggregator.py` module acts as an orchestrator. It contains no statistical logic itself.
+    2.  At startup, it dynamically discovers and imports all stat modules from the `src/core/stats/` package.
+    3.  Each module in the `stats` package defines one or more `Stat` objects, which bundle a calculation function with its metadata.
+    4.  The orchestrator builds a `STATS_REGISTRY` from all discovered stats.
+    5.  Based on user input (or defaults), it calls the appropriate functions from the registry, passing the full dictionary of DataFrames to them.
+*   **Output:** `Tuple[Dict[str, pl.DataFrame], pl.DataFrame]` (a dictionary of all computed aggregated stats, and a single unaggregated DataFrame).
 
-### 4.1. Adding a New Aspect
-Let's say you have a new file, `unit_abilities.mpk`.
+### Step 7: Final Output Generation
+*   **Module:** `src/core/output_generator.py` and `src/core/output_strategies.py`
+*   **Input:** The `Tuple` from Step 6, an output format choice from the CLI, and paths.
+*   **Process:** The `generate_output` function acts as a delegator. Based on the chosen format, it instantiates the correct strategy class and calls its `write` method. The strategy object handles the final serialization:
+    *   **`MessagePackGzipStrategy`**: Converts all DataFrames to dictionaries, creates a `map` object with column information, and writes a single, nested, compressed file.
+    *   **`ParquetDirectoryStrategy`**: Calls `.write_parquet()` on each DataFrame to create separate, self-describing files within a new directory.
+    *   **`JsonLinesGzipStrategy`**: Calls `.write_ndjson()` on each DataFrame and compresses the output, creating separate `.jsonl.gz` files.
+*   **Output:** Final file(s) on disk in the user-specified format.
 
-1.  **Define Raw Schema:** In `schemas/aspects_raw.py`, create a new Pydantic class:
-    ```python
-    class Unit_abilities_Schema_Raw(BaseAspectDataPointRaw):
-        frame: int
-        unit_id: int
-        ability_id: int = Field(metadata={'enum_map': ('ability_name', YourNewAbilityEnum)})
-        energy_cost: int = Field(metadata={'dequantize_by': 10.0})
-    ```
-2.  **Define Enum (if needed):** In `config/enums.py`, add your new enum:
-    ```python
-    class YourNewAbilityEnum(IntEnum):
-        STEALTH = 1
-        OVERDRIVE = 2
-    ```
-3.  **Define Clean Schema:** In `schemas/aspects.py`, create the corresponding "clean" model:
-    ```python
-    from message_pack_parser.config.enums import YourNewAbilityEnum
+## 3. Error Handling Strategy
 
-    class Unit_abilities_Schema(BaseModel):
-        frame: int
-        unit_id: int
-        ability_name: YourNewAbilityEnum
-        energy_cost: float
-    ```
-4.  **Register the Schemas:** Add your new aspect and its schema classes to the two main mapping dictionaries:
-    -   In `schemas/aspects_raw.py`: Add `'unit_abilities': Unit_abilities_Schema_Raw` to `ASPECT_TO_RAW_SCHEMA_MAP`.
-    -   In `schemas/aspects.py`: Add `'unit_abilities': Unit_abilities_Schema` to `ASPECT_TO_CLEAN_SCHEMA_MAP`.
-5.  **Validate:** Run the consistency checker test (`pytest`) to ensure all configurations are aligned.
+The application uses a hierarchy of custom exceptions defined in **`src/core/exceptions.py`** to allow for granular error handling.
+- `ParserError`: The base class for all application-specific errors.
+- `SchemaValidationError`, `TransformationError`, etc.: Specific errors raised by different pipeline stages.
 
-That's it. The dynamic config builder and the rest of the pipeline will automatically pick up the new aspect and its transformation rules.
+This allows the main application loop in `main.py` to catch any `ParserError`, log a critical failure message (often with a helpful suggestion, like using `--force-reprocess` for a stale cache), and exit cleanly with a non-zero status code. This distinguishes expected application failures (like invalid data) from unexpected bugs (like a `KeyError`).
 
-### 4.2. Implementing Production Aggregations
+## 4. How to Run and Extend
 
-The `core/aggregator.py` module is the primary place for domain-specific business logic.
+### Running the Parser
+The application is exposed as a command-line tool via the `parser` command after installation. Install with `pip install -e .` and run `parser --help` for all options.
 
-1.  **Locate the `perform_aggregations` function.**
-2.  Remove the `NotImplementedError` and replace the placeholder logic inside.
-3.  Access the DataFrames for each aspect via the `dataframes_by_aspect` dictionary.
-4.  Use Polars functions (`join`, `group_by`, `agg`, `filter`, etc.) to create your final `aggregated_df` and `unaggregated_df`.
-5.  When you run the CLI, do *not* use the `--run-demo-aggregation` flag to ensure your new logic is executed. The default pass-through behavior is a safe fallback if your logic only populates one of the two output streams.
+### Extending the Parser
+*   **Adding a New Aspect:** Follow the schema registration pattern described in Section 1.3 and validate with `pytest`.
+*   **Adding a New Aggregation Stat:** Please follow the detailed guide in **`docs/aggregator_guide.md`**.
+*   **Adding a New Output Strategy:** Open `src/core/output_strategies.py`, create a new class inheriting from `OutputStrategy`, implement the `write` method, and register it in the `STRATEGY_MAP`. The CLI will discover it automatically.
 
-## 5. Testing and Validation
+## 5. Testing
 
-The project includes a critical pre-flight check in `utils/config_validator.py`. This script is executed at the start of every run and is also part of the test suite. It asserts that all schema and config mappings are consistent, preventing runtime errors due to configuration drift.
+The project uses the `pytest` framework. Key tests include:
+*   `tests/unit/test_aggregator.py`: Tests the logical correctness of individual statistical calculations.
+*   `tests/test_cli.py`: Tests the CLI validation and error handling.
+*   `tests/test_config_consistency.py`: An essential integration test that runs `config_validator` to prevent schema and configuration drift.
 
-To maintain the project's health, it is highly recommended to:
--   Add new unit tests to `tests/` for any new utility functions.
--   Create integration tests that run the full pipeline on small, sample `.mpk` files and assert properties of the output DataFrames.
+To run the full suite, execute `pytest` from the project root.
