@@ -1,29 +1,42 @@
-"""Step 7: Final Output Generation"""
-from typing import Dict, Any, List, Optional
-import polars as pl; import msgpack; import gzip; import os; import logging
-from message_pack_parser.core.exceptions import OutputGenerationError
+"""
+Step 7: Final Output Generation Orchestrator
+"""
+import logging
+import polars as pl
+
+from message_pack_parser.core.output_strategies import OutputStrategy
 
 logger = logging.getLogger(__name__)
 
-def _generate_output_map(agg_cols: Optional[List[str]] = None, unagg_cols: Optional[List[str]] = None) -> Dict[str, Any]:
-    return {"version": "3.0", "description": "Master data file", "data_streams": {"aggregated": {"columns": agg_cols or []}, "unaggregated": {"columns": unagg_cols or []}}}
+def generate_output(
+    strategy: OutputStrategy,
+    aggregated_df: pl.DataFrame,
+    unaggregated_df: pl.DataFrame,
+    output_directory: str,
+    replay_id: str
+) -> None:
+    """
+    Orchestrates the final output generation by executing a provided strategy.
 
-def generate_final_output(agg_df: pl.DataFrame, unagg_df: pl.DataFrame, output_dir: str, replay_id: str):
+    This function is decoupled from the specific output format.
+
+    Args:
+        strategy: An instance of a class that implements the OutputStrategy interface.
+        aggregated_df: The DataFrame containing aggregated data.
+        unaggregated_df: The DataFrame containing detailed, unaggregated data.
+        output_directory: The base directory where output should be saved.
+        replay_id: The unique identifier for the replay.
+    """
     logger.info("Starting Step 7: Final Output Generation")
-    os.makedirs(output_dir, exist_ok=True)
-    output_filepath = os.path.join(output_dir, f"{replay_id}_master_data.mpk.gz")
-
-    master_obj = {
-        "replay_id": replay_id,
-        "map": _generate_output_map(agg_df.columns if agg_df is not None else [], unagg_df.columns if unagg_df is not None else []),
-        "data": {
-            "aggregated": agg_df.to_dicts() if agg_df is not None and not agg_df.is_empty() else [],
-            "unaggregated": unagg_df.to_dicts() if unagg_df is not None and not unagg_df.is_empty() else [],
-        }
-    }
     try:
-        packed = msgpack.packb(master_obj, use_bin_type=True)
-        with gzip.open(output_filepath, "wb") as f: f.write(packed)
-        logger.info(f"Final output saved to: {output_filepath}")
-    except (TypeError, IOError) as e:
-        raise OutputGenerationError(f"Failed to serialize or write final output for {replay_id}") from e
+        strategy.write(
+            aggregated_df=aggregated_df,
+            unaggregated_df=unaggregated_df,
+            output_directory=output_directory,
+            replay_id=replay_id
+        )
+    except Exception as e:
+        # The specific strategy will raise a more detailed error
+        logger.error(f"Output generation failed: {e}", exc_info=True)
+        # Re-raise to be caught by main error handler
+        raise e

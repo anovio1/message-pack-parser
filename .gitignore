@@ -23,3 +23,6 @@ flows/__pycache__/
 *.log
 *.tmp
 *.bak
+
+# data
+data/**/*

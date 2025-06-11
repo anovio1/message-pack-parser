@@ -45,7 +45,17 @@ def stream_transform_aspect(
             
             yield clean_schema_type.model_validate(transformed_dict)
         except (ValidationError, TypeError) as e:
+            # --- IMPROVED ERROR HANDLING ---
+            # Construct a detailed error message with full context.
+            error_message = (
+                f"Transformation/validation failed for aspect '{aspect_name}' (row {i}).\n"
+                f"  - Original Raw Data: {raw_model.model_dump_json()}\n"
+                f"  - Transformed Data (before final validation): {transformed_dict}\n"
+                f"  - Pydantic/Type Error: {e}"
+            )
+            
             if skip_on_error:
-                logger.warning(f"Transformation error on row {i} for '{aspect_name}': {e}. Skipping.")
+                logger.warning(f"{error_message}\n  --> Skipping row as per configuration.")
                 continue
-            raise TransformationError(f"Failed to transform {aspect_name} (row {i})") from e
+            else:
+                raise TransformationError(error_message) from e
