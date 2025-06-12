@@ -35,7 +35,7 @@
     - [`unit_events`](#unit_events-dataframe)
     - [`unit_positions`](#unit_positions-dataframe)
     - [`unit_state_snapshots`](#unit_state_snapshots-dataframe)
-- [7. Composite / Derived DataFrames (Future)](#7-composite--derived-dataframes-future)
+- [7. Composite / Derived DataFrames](#7-composite--derived-dataframes)
 - [8. Usage Examples](#8-usage-examples)
 - [9. References](#9-references)
 
@@ -339,7 +339,7 @@ The pipeline provides the following data guarantees that analysts can rely on wh
 | `current_max_range`     | `pl.Int64`       | The current maximum weapon range of the unit.            | Non-null.                                                             |
 | `is_firing`             | `pl.Boolean`     | True if the unit is currently firing its weapons.        | Non-null.                                                             |
 
-## 7. Composite & Aggregated DataFrame Schemas
+## 7. Composite / Derived DataFrames
 
 This section documents the schemas of the final DataFrames produced by the statistical functions in the **`STATS_REGISTRY`**. These are derived, summary tables, not direct representations of the raw aspect data. Each statistic is now implemented in its own module within the `src/message_pack_parser/core/stats/` directory.
 
