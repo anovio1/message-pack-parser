@@ -345,7 +345,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `aggression_by_unit`
 
-> **Function:** `_calculate_aggression_by_unit`
+> **Function:** [`_calculate_aggression_by_unit`](../src/message_pack_parser/core/stats/aggression_by_unit.py)
 >
 > **Cardinality:** One row per `unit_id` that has position data.
 >
@@ -360,7 +360,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `player_economic_efficiency`
 
-> **Source File:** `.../stats/player_economic_efficiency.py`
+> **Source File:** [`.../stats/player_economic_efficiency.py`](../src/message_pack_parser/core/stats/player_economic_efficiency.py)
 >
 > **Cardinality:** One row per `player_id`.
 >
@@ -376,7 +376,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `force_composition_timeline`
 
-> **Source File:** `.../stats/force_composition_timeline.py`
+> **Source File:** [`.../stats/force_composition_timeline.py`](../src/message_pack_parser/core/stats/force_composition_timeline.py)
 >
 > **Cardinality:** One row per `player_id` per `minute`.
 >
@@ -390,7 +390,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `player_apm_and_focus`
 
-> **Source File:** `.../stats/player_apm_and_focus.py`
+> **Source File:** [`.../stats/player_apm_and_focus.py`](../src/message_pack_parser/core/stats/player_apm_and_focus.py)
 >
 > **Cardinality:** One row per `player_id` per `minute`.
 >
@@ -406,7 +406,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `combat_engagement_summary`
 
-> **Source File:** `.../stats/combat_engagement_summary.py`
+> **Source File:** [`.../stats/combat_engagement_summary.py`](../src/message_pack_parser/core/stats/combat_engagement_summary.py)
 >
 > **Cardinality:** One row per discrete combat engagement.
 >
@@ -425,7 +425,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `map_control_timeline`
 
-> **Source File:** `.../stats/map_control_timeline.py`
+> **Source File:** [`.../stats/map_control_timeline.py`](../src/message_pack_parser/core/stats/map_control_timeline.py)
 >
 > **Cardinality:** One row per `player_id` per `minute`.
 >
@@ -441,7 +441,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `player_collaboration`
 
-> **Source File:** `.../stats/player_collaboration.py`
+> **Source File:** [`.../stats/player_collaboration.py`](../src/message_pack_parser/core/stats/player_collaboration.py)
 >
 > **Cardinality:** One row per `player_id`.
 >
@@ -459,7 +459,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `crisis_response_index`
 
-> **Source File:** `.../stats/crisis_response_index.py`
+> **Source File:** [`.../stats/crisis_response_index.py`](../src/message_pack_parser/core/stats/crisis_response_index.py)
 >
 > **Cardinality:** One row per "crisis event" (a sustained attack on a player's unit).
 >
@@ -476,7 +476,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `damage_by_unit_def`
 
-> **Function:** `_calculate_damage_by_unit_def`
+> **Function:** [`_calculate_damage_by_unit_def`](../src/message_pack_parser/core/stats/damage_by_unit_def.py)
 >
 > | Cardinality: One row per unique `unit_def_id` that dealt damage.
 >
@@ -489,7 +489,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `resources_by_player`
 
-> **Function:** `_calculate_resources_by_player`
+> **Function:** [`_calculate_resources_by_player`](../src/message_pack_parser/core/stats/resources_by_player.py)
 >
 > **Cardinality:** One row per `player_id`.
 >
