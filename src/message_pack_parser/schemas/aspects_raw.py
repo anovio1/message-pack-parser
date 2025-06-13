@@ -1,7 +1,7 @@
 """
 This module defines the Pydantic models for validating the RAW, post-decoded
 data from MPK aspect files. It serves as the SINGLE SOURCE OF TRUTH for
-transformation rules by embedding metadata directly in the field definitions.
+transformation rules by embedding json_schema_extra directly in the field definitions.
 """
 
 from typing import Any, Dict, List, Optional, Type
@@ -49,7 +49,13 @@ class Commands_log_Schema_Raw(BaseAspectDataPointRaw):
     teamId: int
     unitId: int
     cmd_id: int
-    cmd_name: Optional[int] = Field(default=None, metadata={'enum_map': ('cmd_name', CommandsEnum)})
+    cmd_name: Optional[int] = Field(
+        default=None,
+        json_schema_extra={
+            "enum": [e.value for e in CommandsEnum],  # valid enum values
+            "description": "Command name, mapped to CommandsEnum"
+        }
+    )
     cmd_tag: int
     target_unit_id: Optional[int] = None
     x: int
@@ -59,57 +65,61 @@ class Commands_log_Schema_Raw(BaseAspectDataPointRaw):
 
 class Construction_log_Schema_Raw(BaseAspectDataPointRaw):
     frame: int
-    event: int = Field(metadata={"enum_map": ("event", ConstructionActionsEnum)})
+    event: int = Field(
+        json_schema_extra={
+            "enum": [e.value for e in ConstructionActionsEnum],  # valid enum values
+            "description": "Event name, mapped to ConstructionActionsEnum"
+        }
+    )
     builder_unit_id: int
     builder_unit_def_id: int
     builder_player_id: int
     target_unit_id: int
     target_unit_def_id: int
     target_player_id: Optional[int] = None
-    buildpower: int = Field(metadata={"dequantize_by": 1000.0})
+    buildpower: int = Field(json_schema_extra={"dequantize_by": 1000.0})
 
 
 class Team_stats_Schema_Raw(BaseAspectDataPointRaw):
     frame: int
     team_id: int
-    metal_used: int = Field(metadata={"dequantize_by": 10.0})
-    metal_produced: int = Field(metadata={"dequantize_by": 10.0})
-    metal_excess: int = Field(metadata={"dequantize_by": 10.0})
-    metal_received: int = Field(metadata={"dequantize_by": 10.0})
-    metal_sent: int = Field(metadata={"dequantize_by": 10.0})
-    energy_used: int = Field(metadata={"dequantize_by": 10.0})
-    energy_produced: int = Field(metadata={"dequantize_by": 10.0})
-    energy_excess: int = Field(metadata={"dequantize_by": 10.0})
-    energy_received: int = Field(metadata={"dequantize_by": 10.0})
-    energy_sent: int = Field(metadata={"dequantize_by": 10.0})
-    damage_dealt: int = Field(metadata={"dequantize_by": 10.0})
-    damage_received: int = Field(metadata={"dequantize_by": 10.0})
+    metal_used: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_produced: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_excess: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_received: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_sent: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_used: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_produced: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_excess: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_received: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_sent: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    damage_dealt: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    damage_received: int = Field(json_schema_extra={"dequantize_by": 10.0})
     units_killed: int
     units_died: int
     units_captured: int
     units_out_captured: int
     units_received: int
     units_sent: int
-    max_units: int
     current_unit_count: int
-    metal_current: int = Field(metadata={"dequantize_by": 10.0})
-    metal_storage: int = Field(metadata={"dequantize_by": 10.0})
-    metal_pull: int = Field(metadata={"dequantize_by": 10.0})
-    metal_income: int = Field(metadata={"dequantize_by": 10.0})
-    metal_expense: int = Field(metadata={"dequantize_by": 10.0})
-    metal_share: int = Field(metadata={"dequantize_by": 10.0})
-    metal_Rsent: int = Field(metadata={"dequantize_by": 10.0})
-    metal_Rreceived: int = Field(metadata={"dequantize_by": 10.0})
-    metal_Rexcess: int = Field(metadata={"dequantize_by": 10.0})
-    energy_current: int = Field(metadata={"dequantize_by": 10.0})
-    energy_storage: int = Field(metadata={"dequantize_by": 10.0})
+    metal_current: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_storage: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_pull: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_income: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_expense: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_share: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_Rsent: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_Rreceived: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_Rexcess: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_current: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_storage: int = Field(json_schema_extra={"dequantize_by": 10.0})
     energy_pull: int = Field(json_schema_extra={"dequantize_by": 10.0})
-    energy_income: int = Field(metadata={"dequantize_by": 10.0})
-    energy_expense: int = Field(metadata={"dequantize_by": 10.0})
-    energy_share: int = Field(metadata={"dequantize_by": 10.0})
-    energy_Rsent: int = Field(metadata={"dequantize_by": 10.0})
-    energy_Rreceived: int = Field(metadata={"dequantize_by": 10.0})
-    energy_Rexcess: int = Field(metadata={"dequantize_by": 10.0})
+    energy_income: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_expense: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_share: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_Rsent: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_Rreceived: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_Rexcess: int = Field(json_schema_extra={"dequantize_by": 10.0})
 
 
 class Unit_economy_Schema_Raw(BaseAspectDataPointRaw):
@@ -117,13 +127,16 @@ class Unit_economy_Schema_Raw(BaseAspectDataPointRaw):
     unit_id: int
     unit_def_id: int
     team_id: int
-    event_type: int = Field(
-        metadata={"enum_map": ("event_type", UnitEconomyEventsEnum)}
+    event_type: int =  Field(
+        json_schema_extra={
+            "enum": [e.value for e in UnitEconomyEventsEnum],  # valid enum values
+            "description": "Event type, mapped to UnitEconomyEventsEnum"
+        }
     )
-    metal_make: int = Field(metadata={"dequantize_by": 10.0})
-    metal_use: int = Field(metadata={"dequantize_by": 10.0})
-    energy_make: int = Field(metadata={"dequantize_by": 10.0})
-    energy_use: int = Field(metadata={"dequantize_by": 10.0})
+    metal_make: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    metal_use: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_make: int = Field(json_schema_extra={"dequantize_by": 10.0})
+    energy_use: int = Field(json_schema_extra={"dequantize_by": 10.0})
 
 
 class Unit_events_Schema_Raw(BaseAspectDataPointRaw):
@@ -137,7 +150,12 @@ class Unit_events_Schema_Raw(BaseAspectDataPointRaw):
     attacker_unit_id: Optional[int] = None
     attacker_unit_def_id: Optional[int] = None
     attacker_team_id: Optional[int] = None
-    event_type: int = Field(metadata={"enum_map": ("event_type", UnitEventsEnum)})
+    event_type: int =  Field(
+        json_schema_extra={
+            "enum": [e.value for e in UnitEventsEnum],  # valid enum values
+            "description": "Event type, mapped to UnitEventsEnum"
+        }
+    )
     old_team_id: Optional[int] = None
     new_team_id: Optional[int] = None
     builder_id: Optional[int] = None
@@ -152,9 +170,9 @@ class Unit_positions_Schema_Raw(BaseAspectDataPointRaw):
     x: int
     y: int
     z: int
-    vx: int = Field(metadata={"dequantize_by": 1000.0})
-    vy: int = Field(metadata={"dequantize_by": 1000.0})
-    vz: int = Field(metadata={"dequantize_by": 1000.0})
+    vx: int = Field(json_schema_extra={"dequantize_by": 1000.0})
+    vy: int = Field(json_schema_extra={"dequantize_by": 1000.0})
+    vz: int = Field(json_schema_extra={"dequantize_by": 1000.0})
     heading: int
 
 
@@ -164,7 +182,7 @@ class Unit_state_snapshots_Schema_Raw(BaseAspectDataPointRaw):
     team_id: int
     currentHealth: int
     currentMaxHealth: int
-    experience: int = Field(metadata={"dequantize_by": 1000.0})
+    experience: int = Field(json_schema_extra={"dequantize_by": 1000.0})
     is_being_built: bool
     is_stunned: bool
     is_cloaked: bool
@@ -183,7 +201,7 @@ class Damage_log_Schema_Raw(BaseAspectDataPointRaw):
     attacker_def_id: Optional[int] = None
     weapon_def_id: int
     projectile_id: int
-    damage: int = Field(metadata={"dequantize_by": 10.0})
+    damage: int = Field(json_schema_extra={"dequantize_by": 10.0})
     is_paralyzer: bool
     victim_pos_x: int
     victim_pos_y: int

@@ -69,7 +69,7 @@ These schemas are programmatically derived from the "clean" Pydantic models loca
 
 | Version | Date       | Change Description                                 |
 | :------ | :--------- | :------------------------------------------------- |
-| `1.0`   | 2023-10-27 | Initial, complete creation of the data dictionary. |
+| `1.0`   | 2025-06-13 | Initial, complete creation of the data dictionary. |
 
 ## 3. Conventions & Glossary
 

@@ -34,12 +34,17 @@ def save_to_cache(data_by_aspect: Dict[str, List[BaseAspectDataPointRaw]], cache
     cache_filepath = _get_cache_filepath(cache_dir, replay_id)
     pipeline_version = _get_pipeline_version_hash()
     serializable_data = {
-        name: [item.model_dump(mode='json') for item in aspect_list] for name, aspect_list in data_by_aspect.items()
+        name: [
+            item.model_dump for item in aspect_list
+            ] 
+        for name, aspect_list in data_by_aspect.items()
     }
     cache_payload = {'version': pipeline_version, 'data': serializable_data}
     try:
         with open(cache_filepath, "wb") as f:
-            f.write(msgpack.packb(cache_payload, use_bin_type=True))
+            packed_data = msgpack.packb(cache_payload, use_bin_type=True)
+            assert(isinstance(packed_data, bytes))
+            f.write(packed_data)
         logger.info(f"Data cached successfully with version: {pipeline_version[:7]}")
     except (IOError, TypeError) as e:
         raise CacheWriteError(f"Failed to write to cache file {cache_filepath}") from e

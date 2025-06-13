@@ -1,0 +1,240 @@
+{
+  "model_name": "Team_stats_Schema_Raw",
+  "source_aspect": "team_stats",
+  "fields": [
+    {
+      "name": "frame",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "team_id",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "metal_used",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_produced",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_excess",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_received",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_sent",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_used",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_produced",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_excess",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_received",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_sent",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "damage_dealt",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "damage_received",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "units_killed",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "units_died",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "units_captured",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "units_out_captured",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "units_received",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "units_sent",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "current_unit_count",
+      "type": "int",
+      "dequantize_by": null,
+      "enum_map": null
+    },
+    {
+      "name": "metal_current",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_storage",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_pull",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_income",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_expense",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_share",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_Rsent",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_Rreceived",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "metal_Rexcess",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_current",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_storage",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_pull",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_income",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_expense",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_share",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_Rsent",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_Rreceived",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    },
+    {
+      "name": "energy_Rexcess",
+      "type": "int",
+      "dequantize_by": 10.0,
+      "enum_map": null
+    }
+  ]
+}

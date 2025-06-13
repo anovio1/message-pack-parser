@@ -25,8 +25,9 @@ def stream_transform_aspect(
     enum_rules = ASPECT_ENUM_MAPPINGS.get(aspect_name, {})
     
     for i, raw_model in enumerate(raw_model_stream):
+        transformed_dict = {}
         try:
-            transformed_dict = raw_model.model_dump(mode='json')
+            transformed_dict = raw_model.model_dump()
             
             if divisor := dequant_rules.get("divisor"):
                 for field in dequant_rules.get("fields", []):
@@ -38,15 +39,13 @@ def stream_transform_aspect(
                     raw_val = transformed_dict.pop(raw_field) if raw_field != clean_field else transformed_dict[raw_field]
                     if raw_val is not None:
                         try:
-                            transformed_dict[clean_field] = enum_class(raw_val)
+                            transformed_dict[clean_field] = enum_class(raw_val)  # Enum class is instantiated directly from the raw integer value.
                         except ValueError:
                             logger.warning(f"Invalid enum value '{raw_val}' for {raw_field} in {aspect_name} (row {i}). Setting to None.")
                             transformed_dict[clean_field] = None
             
             yield clean_schema_type.model_validate(transformed_dict)
         except (ValidationError, TypeError) as e:
-            # --- IMPROVED ERROR HANDLING ---
-            # Construct a detailed error message with full context.
             error_message = (
                 f"Transformation/validation failed for aspect '{aspect_name}' (row {i}).\n"
                 f"  - Original Raw Data: {raw_model.model_dump_json()}\n"
