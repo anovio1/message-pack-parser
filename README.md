@@ -1,10 +1,10 @@
-# Message Pack Parser
+# Message Pack Processor
 
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Pytest](https://img.shields.io/badge/tested%20with-pytest-009ee5.svg)](https://pytest.org)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A parallelized parser for ingesting, transforming, and aggregating data from `.mpk` files.
+A parallelized processor for ingesting, processing, and aggregating data from `.mpk` files.
 
 This tool is designed to be robust, efficient, and extensible, using a modern Python stack including Pydantic, Polars, and Typer.
 
@@ -33,7 +33,7 @@ A virtual environment is highly recommended. This project uses `pyproject.toml` 
 
     ```bash
     git clone <your-repo-url>
-    cd message_pack_parser
+    cd message_pack_processor
     ```
 
 2.  **Create and activate a virtual environment:**
@@ -74,7 +74,7 @@ mpp-parser run <REPLAY_ID> \
     --output-dir ./data/output
 
 ### Run the Full Pipeline
-To run the parser, you need to provide a unique ID for the replay and specify the input, cache, and output directories.
+To run the processor, you need to provide a unique ID for the replay and specify the input, cache, and output directories.
 
 ```bash
 # Example run
