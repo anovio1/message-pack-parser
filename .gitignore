@@ -27,3 +27,5 @@ flows/__pycache__/
 
 # data
 data/**/*
+
+.vscode/**/*
