@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 import time
 from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -9,8 +10,9 @@ from rich.progress import Progress
 from enum import Enum
 
 # Import from our package
+from message_pack_parser.context import build_execution_context
 from message_pack_parser.logging_config import setup_logging
-from message_pack_parser.core.ingestion import load_mpk_files, list_recognized_aspects
+from message_pack_parser.core.ingestion import ingest_defs_csv, load_mpk_files, list_recognized_aspects, load_unit_definitions
 from message_pack_parser.core.decoder import stream_decode_aspect
 from message_pack_parser.core.cache_manager import save_to_cache, load_from_cache
 from message_pack_parser.core.value_transformer import stream_transform_aspect
@@ -22,6 +24,7 @@ from message_pack_parser.core.output_strategies import (
     OutputFormat,
     STRATEGY_MAP
 )
+from message_pack_parser.schemas.unit_defs_schema import UnitDefsFile, UnitDef
 from message_pack_parser.schemas.aspects_raw import BaseAspectDataPointRaw
 from message_pack_parser.core.exceptions import ParserError, CacheValidationError
 from message_pack_parser.utils.config_validator import validate_configurations
@@ -187,7 +190,16 @@ def run(
     skip_on_error: bool = typer.Option(False, help="Skip individual records that fail validation instead of halting."),
     run_demo_aggregation: bool = typer.Option(False, help="Run illustrative aggregation logic instead of production logic."),
     log_level: str = typer.Option("INFO", help="Logging level (DEBUG, INFO, WARNING, ERROR)."),
-    dry_run: bool = typer.Option(False, help="Validate config and list input files without processing.")
+    dry_run: bool = typer.Option(False, help="Validate config and list input files without processing."),
+    unit_defs_path: Optional[Path] = typer.Option(
+        None, 
+        "--unit-defs", 
+        "-ud", 
+        help="Path to a custom unitdefs.json file. If not provided, a default file will be used.",
+        exists=True, # Typer will validate that the file exists if a path is given
+        dir_okay=False,
+        resolve_path=True,
+    ),
 ):
     """
     Runs the complete Message Pack parsing pipeline for a given replay.
@@ -198,13 +210,21 @@ def run(
     try:
         logger.info("--- [Step 0] Configuration Validation ---")
         validate_configurations()
-
+        
+        
         logger.info("--- [Step 1] File Ingestion ---")
         raw_mpk_data = load_mpk_files(input_dirs)
         if not raw_mpk_data:
             raise ParserError("Step 1 Ingestion Error: No MPK files were loaded.")
         logger.info(f"Ingested {len(raw_mpk_data)} aspect files.")
         
+        # Ingest defs.csv from the same directories
+        defs_map_df = ingest_defs_csv(input_dirs)
+    
+        logger.info("--- [Pre-Step] Loading Context Data ---")
+        # Build context using the ingested defs_map_df
+        context_dataframes = build_execution_context(unit_defs_path, defs_map_df)
+
         if dry_run:
             logger.info("Dry run requested. Found the following aspects:")
             for aspect_name, raw_bytes in raw_mpk_data.items():
@@ -221,6 +241,8 @@ def run(
         else:
             dataframes = _run_parallel_pipeline(raw_mpk_data, skip_on_error)
             
+        dataframes.update(context_dataframes)
+
         logger.info(f"Main processing (Steps 2-5) complete in {time.perf_counter() - stage_start_time:.2f}s.")
 
         # --- Steps 6 & 7 are always serial ---
