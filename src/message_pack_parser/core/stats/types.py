@@ -1,3 +1,4 @@
+# src\message_pack_parser\core\stats\types.py
 """
 This module defines shared types and data structures used across the stats package,
 preventing circular dependencies.

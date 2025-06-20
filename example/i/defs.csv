@@ -1,0 +1,551 @@
+id,name,translatedTooltip,translatedHumanName
+1,armaak,Advanced Amphibious Anti-Air Bot,Archangel
+2,armaap,Produces Tech 2 Aircraft,Advanced Aircraft Plant
+3,armaas,Anti-Air Ship,Dragonslayer
+4,armaca,Tech 2 Constructor,Advanced Construction Aircraft
+5,armack,Tech 2 Constructor,Advanced Construction Bot
+6,armacsub,Tech 2 Constructor,Advanced Construction Sub
+7,armacv,Tech 2 Constructor,Advanced Construction Vehicle
+8,armadvsol,Produces 75 Energy,Advanced Solar Collector
+9,armafus,Produces 3000 Energy (Hazardous),Advanced Fusion Reactor
+10,armageo,Produces 1250 Energy (Hazardous),Advanced Geothermal Powerplant
+11,armah,Anti-Air Hovercraft,Sweeper
+12,armalab,Produces Tech 2 Bots,Advanced Bot Lab
+13,armamb,Cloakable Pop-up Plasma Artillery,Rattlesnake
+14,armamd,Anti-Nuke System,Citadel
+15,armamex,Stealthy Cloakable Metal Extractor,Twilight
+16,armamph,Amphibious Bot,Platypus
+17,armamsub,Produces Amphibious / Underwater Units,Amphibious Complex
+18,armanac,Hovertank,Crocodile
+19,armanni,Tachyon Accelerator,Pulsar
+20,armantiship,Mobile Anti-Nuke Generator and Radar/Sonar,Haven
+21,armap,Produces Tech 1 Aircraft,Aircraft Plant
+22,armarad,Long-Range Radar,Advanced Radar Tower
+23,armart,Light Artillery Vehicle,Shellshocker
+24,armaser,Radar Jammer Bot,Smuggler
+25,armason,Extended Sonar,Advanced Sonar Station
+26,armasp,Automatically Repairs Aircraft,Air Repair Pad
+27,armassistdrone,Portable Buildpower,Assist Drone
+28,armassistdrone_land,Portable Buildpower,Assist Vehicle
+29,armasy,Produces Tech 2 Ships,Advanced Shipyard
+30,armatl,Advanced Torpedo Launcher,Moray
+31,armatlas,Light Air Transport,Stork
+32,armavp,Produces Tech 2 Vehicles,Advanced Vehicle Plant
+33,armawac,Radar / Sonar Plane,Oracle
+34,armbanth,Assault Mech,Titan
+35,armbats,Battleship,Dreadnought
+36,armbeamer,Beam Laser Turret,Beamer
+37,armbeaver,Amphibious Construction Vehicle,Beaver
+38,armblade,Rapid Assault Gunship,Hornet
+39,armbrawl,Gunship,Roughneck
+40,armbrtha,Long Range Plasma Cannon,Basilica
+41,armbull,Heavy Assault Tank,Bull
+42,armca,Tech 1 Constructor,Construction Aircraft
+43,armcarry,Aircraft Carrier with Anti-Nuke,Haven
+44,armch,Tech 1 Constructor,Construction Hovercraft
+45,armcir,Medium-Range Anti-Air Missile Battery,Chainsaw
+46,armck,Tech 1 Constructor,Construction Bot
+47,armckfus,Produces 1050 Energy,Cloakable Fusion Reactor
+48,armclaw,Pop-up Lightning Turret,Dragon's Claw
+49,armcom,Commander,Armada Commander
+50,armcomcon,Commander,Armada Commander
+51,armcomlvl10,Defensive specialist that shares experience with turrets,Armada Commander Level 10
+52,armcomlvl2,Commander,Armada Commander Level 2
+53,armcomlvl3,Defensive specialist that shares experience with turrets,Armada Commander Level 3
+54,armcomlvl4,Defensive specialist that shares experience with turrets,Armada Commander Level 4
+55,armcomlvl5,Defensive specialist that shares experience with turrets,Armada Commander Level 5
+56,armcomlvl6,Defensive specialist that shares experience with turrets,Armada Commander Level 6
+57,armcomlvl7,Defensive specialist that shares experience with turrets,Armada Commander Level 7
+58,armcomlvl8,Defensive specialist that shares experience with turrets,Armada Commander Level 8
+59,armcomlvl9,Defensive specialist that shares experience with turrets,Armada Commander Level 9
+60,armcomnew,units.descriptions.armcomnew,units.names.armcomnew
+61,armconsul,Combat Engineer,Consul
+62,armcroc,Heavy Amphibious Tank,Turtle
+63,armcrus,Cruiser,Paladin
+64,armcs,Tech 1 Constructor,Construction Ship
+65,armcsa,Tech 1 Constructor,Construction Seaplane
+66,armcv,Tech 1 Constructor,Construction Vehicle
+67,armdecade,Fast Assault Corvette,Dolphin
+68,armdecom,Decoy Commander,Commander
+69,armdecomlvl10,Defensive specialist that shares experience with turrets,Armada Commander Level 10
+70,armdecomlvl3,Defensive specialist that shares experience with turrets,Armada Commander Level 3
+71,armdecomlvl6,Defensive specialist that shares experience with turrets,Armada Commander Level 6
+72,armdf,Does not produce Energy used to confuse the enemy,Decoy Fusion Reactor
+73,armdfly,Stealthy Armed Heavy Transport,Abductor
+74,armdl,Coastal Torpedo Launcher,Anemone
+75,armdrag,Fortification,Dragon's Teeth
+76,armdrone,Drone Carrier Spawned Drone,Attack Drone
+77,armdronecarry,Drone Carrier,Nexus
+78,armdroneold,Drone Carrier Spawned Drone,Attack Drone
+79,armemp,EMP Missile Launcher,Paralyzer
+80,armepoch,Flagship,Epoch
+81,armestor,Increases Energy Storage (6000),Energy Storage
+82,armexcalibur,Coastal Assault Submarine,Excalibur
+83,armeyes,Perimeter Camera,Beholder
+84,armfark,Fast Assist / Repair Bot,Butler
+85,armfasp,Automatically Repairs Aircraft,Air Repair Pad
+86,armfast,Fast Raider Bot,Sprinter
+87,armfatf,Enhanced Radar Targeting,Naval Pinpointer
+88,armfav,Light Scout Vehicle,Rover
+89,armfboy,Heavy Plasma Bot,Fatboy
+90,armfdrag,Naval Fortification,Shark's Teeth
+91,armferret,Pop-Up Anti-Air Missile Battery,Ferret
+92,armfflak,Anti-Air Flak Gun - Naval Series,Naval Arbalest
+93,armfgate,Floating Plasma Deflector,Aurora
+94,armfhlt,Floating Heavy Laser Tower,Manta
+95,armfhp,Builds Hovercraft,Naval Hovercraft Platform
+96,armfido,Mortar / Skirmish Bot,Hound
+97,armfig,Fighter,Falcon
+98,armflak,Anti-Air Flak Gun,Arbalest
+99,armflash,Fast Assault Tank,Blitz
+100,armflea,Fast Scout Bot,Tick
+101,armfmine3,Heavy Mine Naval Series,Heavy Mine
+102,armfmkr,Converts 70 energy into 1 metal per sec,Naval Energy Converter
+103,armfort,Advanced Fortification,Fortification Wall
+104,armfrad,Early Warning System,Naval Radar / Sonar Tower
+105,armfrock,Floating Anti-Air Missile Battery,Scumbag
+106,armfrt,Floating Anti-air Tower,Naval Nettle
+107,armfus,Produces 1000 Energy,Fusion Reactor
+108,armgate,Plasma Deflector,Keeper
+109,armgeo,Produces 300 Energy,Geothermal Powerplant
+110,armgmm,Safe Geothermal Powerplant produces 750 Energy,Prude
+111,armgplat,Light Plasma Defense,Gun Platform
+112,armgremlin,Stealth Tank,Gremlin
+113,armguard,Area Control Plasma Artillery,Gauntlet
+114,armham,Light Plasma Bot,Mace
+115,armhawk,Stealth Fighter,Highwind
+116,armhlt,Area Control Laser Tower,Overwatch
+117,armhp,Builds Hovercraft,Hovercraft Platform
+118,armhvytrans,Heavy Transport,Osprey
+119,armjam,Radar Jammer Vehicle,Umbra
+120,armjamt,Jammer Tower,Sneaky Pete
+121,armjanus,Twin Medium Rocket Launcher,Janus
+122,armjeth,Amphibious Anti-air Bot,Crossbow
+123,armjuno,Anti Radar / Jammer / Minefield / ScoutSpam Weapon,Juno
+124,armkam,Light Gunship,Banshee
+125,armkraken,Floating Rapid-fire Plasma Tower,Gorgon
+126,armlab,Produces Tech 1 Bots,Bot Lab
+127,armlance,Torpedo Bomber,Cormorant
+128,armlatnk,Lightning Tank,Jaguar
+129,armliche,Atomic Bomber,Liche
+130,armllt,Light Laser Tower,Sentry
+131,armlship,Fast Raider/Skirmisher,Maelstrom
+132,armlun,Heavy Hovertank,Lunkhead
+133,armmakr,Converts 70 energy into 1 metal per sec,Energy Converter
+134,armmanni,Mobile Tachyon Weapon,Starlight
+135,armmar,Amphibious Assault Mech,Marauder
+136,armmark,Radar Bot,Compass
+137,armmart,Mobile Artillery,Mauser
+138,armmav,Skirmish Bot. Auto-Repair. Range increases with experience,Gunslinger
+139,armmercury,Long Range Anti-Air Tower,Mercury
+140,armmerl,Stealthy Rocket Launcher - good vs. static defense,Ambassador
+141,armmex,Extracts Metal from Metalspots,Metal Extractor
+142,armmh,Hovercraft Rocket Launcher,Possum
+143,armmine1,Light Mine,Light Mine
+144,armmine2,Medium Mine,Medium Mine
+145,armmine3,Heavy Mine,Heavy Mine
+146,armmls,Naval Engineer,Voyager
+147,armmlv,Stealthy Minelayer / Minesweeper,Groundhog
+148,armmmkr,Converts 600 energy into 10.3 metal per sec,Advanced Energy Converter
+149,armmoho,Advanced Metal Extractor / Storage,Advanced Metal Extractor
+150,armmship,Missile Cruiser,Longbow
+151,armmstor,Increases Metal Storage (3000),Metal Storage
+152,armnanotc,Assist & Repair in large radius,Construction Turret
+153,armnanotc2plat,Assist & Repair in larger radius,Advanced Construction Turret
+154,armnanotcplat,Assist & Repair in large radius,Naval Construction Turret
+155,armnanotct2,Assist & Repair in larger radius,Advanced Construction Turret
+156,armpb,Pop-up Gauss Cannon,Pit Bull
+157,armpeep,Scout,Blink
+158,armpincer,Light Amphibious Tank,Pincer
+159,armplat,Builds Seaplanes,Seaplane Platform
+160,armpnix,Strategic Bomber,Blizzard
+161,armprowl,Amphibious Assault Mech,Marauder
+162,armpship,Assault Frigate,Ellysaw
+163,armpt,Stealthy Patrol Boat / Light Anti Air / Sonar,Skater
+164,armpw,Fast Infantry Bot,Pawn
+165,armrad,Early Warning System,Radar Tower
+166,armraz,Battle Mech,Razorback
+167,armrecl,Resurrection Sub,Grim Reaper
+168,armrectr,Stealthy Rez / Repair / Reclaim Bot,Lazarus
+169,armrespawn,Assist & Repair in massive radius.,Base Builder
+170,armrl,Light Anti-air Tower,Nettle
+171,armrock,Rocket Bot - good vs. static defenses,Rocketeer
+172,armroy,Destroyer,Corsair
+173,armsaber,Seaplane Gunship,Sabre
+174,armsam,Missile Truck,Whistler
+175,armsat,Satellite,Satellite
+176,armsb,Seaplane Bomber,Tsunami
+177,armscab,Mobile Anti-Nuke,Umbrella
+178,armsd,Intrusion Countermeasure System - tracks down stealthy units,Tracer
+179,armseadragon,Nuclear ICBM Launcher Submarine,Seadragon
+180,armseap,Torpedo Gunship,Puffin
+181,armseer,Radar Vehicle,Prophet
+182,armsehak,Advanced Radar / Sonar Plane,Horizon
+183,armserp,Long-Range Battle Submarine,Serpent
+184,armsfig,Seaplane Swarmer,Cyclone
+185,armsfig2,Heavy AOE Seaplane Fighter,Cyclone
+186,armsh,Fast Attack Hovercraft,Seeker
+187,armshltx,Produces Experimental Units,Experimental Gantry
+188,armshltxuw,Produces Large Amphibious Units,Experimental Gantry
+189,armshockwave,Advanced Defensive Metal Extractor and EMP Turret,Shockwave
+190,armsilo,Nuclear ICBM Launcher,Armageddon
+191,armsjam,Radar Jammer Ship,Bermuda
+192,armsnipe,Sniper Bot,Sharpshooter
+193,armsolar,Produces 20 Energy,Solar Collector
+194,armsonar,Locates Water Units,Sonar Station
+195,armspid,All-Terrain EMP and Reclaiming Spider,Webber
+196,armsptk,All-Terrain Rocket Spider,Recluse
+197,armspy,Radar-Invisible Spy Bot,Ghost
+198,armstil,EMP Bomber,Stiletto
+199,armstump,Medium Assault Tank,Stout
+200,armsub,Submarine,Eel
+201,armsubk,Fast Assault Submarine,Barracuda
+202,armsy,Produces Tech 1 Ships,Shipyard
+203,armtarg,Enhanced Radar Targeting more facilities enhance accuracy,Pinpointer
+204,armtdrone,Depth Charge Drone,Depth Charge Drone
+205,armthor,Experimental Terminator Tank,Thor
+206,armthovr,Heavy Transport Hovercraft,Bearer
+207,armthund,Bomber,Stormbringer
+208,armtide,Produces Energy (depends on map),Tidal Generator
+209,armtl,Offshore Torpedo Launcher,Harpoon
+210,armtorps,Torpedo Ship,Torpedo Ship
+211,armtrident,Depth Charge Drone Carrier,Trident
+212,armtship,Armored Transport Ship,Convoy
+213,armuwadves,Increases Energy Storage (40000),Hardened Energy Storage
+214,armuwadvms,Increases Metal Storage (10000),Hardened Metal Storage
+215,armuwageo,Produces 1250 Energy (Hazardous),Advanced Geothermal Powerplant
+216,armuwes,Increases Energy Storage (6000),Naval Energy Storage
+217,armuwfus,Produces 1200 Energy,Naval Fusion Reactor
+218,armuwgeo,Produces 300 Energy,Offshore Geothermal Powerplant
+219,armuwmme,Advanced Metal Extractor / Storage,Naval Advanced Metal Extractor
+220,armuwmmm,Converts 600 energy into 10.3 metal per sec,Naval Advanced Energy Converter
+221,armuwms,Increases Metal Storage (3000),Naval Metal Storage
+222,armvader,Amphibious Rolling Bomb,Tumbleweed
+223,armvang,All-Terrain Heavy Plasma Cannon,Vanguard
+224,armveil,Long-Range Jamming Tower,Veil
+225,armvp,Produces Tech 1 Vehicles,Vehicle Plant
+226,armvulc,Rapid-Fire Long-Range Plasma Cannon,Ragnarok
+227,armwar,Anti-Swarm Bot,Centurion
+228,armwin,Produces Energy. Depends on wind strength.,Wind Turbine
+229,armyork,Anti-Air Flak Vehicle,Shredder
+230,armzeus,Assault Bot,Welder
+231,chip,Chip,Chip
+232,comeffigylvl1,Transposes with Commander upon death; build one only,Commander Effigy
+233,comeffigylvl2,Transposes with Commander upon death; build one only,Commander Effigy
+234,comeffigylvl3,Transposes with Commander upon death; build one only,Commander Effigy
+235,comeffigylvl4,Transposes with Commander upon death; build one only,Commander Effigy
+236,comeffigylvl5,Transposes with Commander upon death; build one only,Commander Effigy
+237,cor_hat_fightnight,The legendary Fight Night Trophy,#1 Grunt
+238,cor_hat_hornet,A weathered yet dapper tricorn,Hornet's Tricorn
+239,cor_hat_hw,Spooky Fight Night Trophy,Spooky Pumpkin
+240,cor_hat_legfn,The Legendary Legion Fight Night Trophy,#1 Goblin
+241,cor_hat_ptaq,The finest bonnet in all of Gnomedom,PtaQ's Hat
+242,cor_hat_viking,A fierce Viking helmet,Viking Helmet
+243,coraak,Heavy Amphibious Anti-Air Bot,Manticore
+244,coraap,Produces Tech 2 Aircraft,Advanced Aircraft Plant
+245,coraca,Tech 2 Constructor,Advanced Construction Aircraft
+246,corack,Tech 2 Constructor,Advanced Construction Bot
+247,coracsub,Tech 2 Constructor,Advanced Construction Sub
+248,coracv,Tech 2 Constructor,Advanced Construction Vehicle
+249,coradvsol,Produces 75 Energy,Advanced Solar Collector
+250,corafus,Produces 3000 Energy (Hazardous),Advanced Fusion Reactor
+251,corageo,Produces 1250 Energy (Hazardous),Advanced Geothermal Powerplant
+252,corah,Anti-Air Hovercraft,Birdeater
+253,corak,Fast Infantry Bot,Grunt
+254,coralab,Produces Tech 2 Bots,Advanced Bot Lab
+255,coramph,Amphibious Bot,Duck
+256,coramsub,Produces Amphibious / Underwater Units,Amphibious Complex
+257,corantiship,Mobile Anti-Nuke Generator and Radar/Sonar,Oasis
+258,corap,Produces Tech 1 Aircraft,Aircraft Plant
+259,corape,Gunship,Wasp
+260,corarad,Long-Range Radar,Advanced Radar Tower
+261,corarch,Anti-Air Ship,Arrow Storm
+262,corason,Extended Sonar,Advanced Sonar Station
+263,corasp,Automatically Repairs Aircraft,Air Repair Pad
+264,corassistdrone,Portable Buildpower,Assist Drone
+265,corassistdrone_land,Portable Buildpower,Assist Vehicle
+266,corasy,Produces Tech 2 Ships,Advanced Shipyard
+267,coratl,Advanced Torpedo Launcher,Lamprey
+268,coravp,Produces Tech 2 Vehicles,Advanced Vehicle Plant
+269,corawac,Radar / Sonar Plane,Condor
+270,corban,Heavy Missile Tank,Banisher
+271,corbats,Battleship,Despot
+272,corbhmth,Geothermal Plasma Battery,Cerberus
+273,corblackhy,Flagship,Black Hydra
+274,corbuzz,Rapid-Fire Long-Range Plasma Cannon,Calamity
+275,corbw,Light Paralyzer Drone,Shuriken
+276,corca,Tech 1 Constructor,Construction Aircraft
+277,corcan,Armored Assault Bot,Sumo
+278,corcarry,Aircraft Carrier with Anti-Nuke,Oasis
+279,corcat,Heavy Rocket Bot,Catapult
+280,corch,Tech 1 Constructor,Construction Hovercraft
+281,corck,Tech 1 Constructor,Construction Bot
+282,corcom,Commander,Cortex Commander
+283,corcomcon,Commander,Cortex Commander
+284,corcomlvl10,Specialized in frontline warfare,Cortex Commander Level 10
+285,corcomlvl2,Commander,Cortex Commander Level 2
+286,corcomlvl3,Specialized in frontline warfare,Cortex Commander Level 3
+287,corcomlvl4,Specialized in frontline warfare,Cortex Commander Level 4
+288,corcomlvl5,Specialized in frontline warfare,Cortex Commander Level 5
+289,corcomlvl6,Specialized in frontline warfare,Cortex Commander Level 6
+290,corcomlvl7,Specialized in frontline warfare,Cortex Commander Level 7
+291,corcomlvl8,Specialized in frontline warfare,Cortex Commander Level 8
+292,corcomlvl9,Specialized in frontline warfare,Cortex Commander Level 9
+293,corcrash,Amphibious Anti-air Bot,Trasher
+294,corcrus,Cruiser,Buccaneer
+295,corcrwh,Flying Fortress,Dragon
+296,corcs,Tech 1 Constructor,Construction Ship
+297,corcsa,Tech 1 Constructor,Construction Seaplane
+298,corcut,Seaplane Gunship,Cutlass
+299,corcv,Tech 1 Constructor,Construction Vehicle
+300,cordecom,Decoy Commander,Commander
+301,cordecomlvl10,Specialized in frontline warfare,Cortex Commander Level 10
+302,cordecomlvl3,Specialized in frontline warfare,Cortex Commander Level 3
+303,cordecomlvl6,Specialized in frontline warfare,Cortex Commander Level 6
+304,cordemon,Flamethrower Mech,Demon
+305,cordesolator,Nuclear ICBM Launcher Submarine,Desolator
+306,cordl,Coastal Torpedo Launcher,Jellyfish
+307,cordoom,Energy Weapon,Bulwark
+308,cordrag,Fortification,Dragon's Teeth
+309,cordrone,Drone Carrier Spawned Drone,Attack Drone
+310,cordronecarry,Drone Carrier,Disperser
+311,cordroneold,Drone Carrier Spawned Drone,Attack Drone
+312,corenaa,Anti-Air Flak Gun - Naval Series,Naval Birdshot
+313,corerad,Medium-Range Anti-Air Missile Battery,Eradicator
+314,corestor,Increases Energy Storage (6000),Energy Storage
+315,coresupp,Light Gun Boat,Supporter
+316,coreter,Radar Jammer Vehicle,Obscurer
+317,corexp,Armed Metal Extractor,Exploiter
+318,coreyes,Perimeter Camera,Beholder
+319,corfasp,Automatically Repairs Aircraft,Air Repair Pad
+320,corfast,Combat Engineer,Twitcher
+321,corfatf,Enhanced Radar Targeting,Naval Pinpointer
+322,corfav,Light Scout Vehicle,Rascal
+323,corfdoom,Floating Multi-Weapon Platform,Devastator
+324,corfdrag,Naval Fortification,Shark's Teeth
+325,corfgate,Floating Plasma Deflector,Atoll
+326,corfhlt,Floating Heavy Laser Tower,Coral
+327,corfhp,Builds Hovercraft,Naval Hovercraft Platform
+328,corfink,Scout,Finch
+329,corflak,Anti-Air Flak Gun,Birdshot
+330,corfmd,Anti-Nuke System,Prevailer
+331,corfmine3,Heavy Mine Naval Series,Heavy Mine
+332,corfmkr,Converts 70 energy into 1 metal per sec,Naval Energy Converter
+333,corfort,Advanced Fortification,Fortification Wall
+334,corfrad,Early Warning System,Naval Radar / Sonar Tower
+335,corfrock,Floating Anti-Air Missile Battery,Janitor
+336,corfrt,Floating Anti-air Tower,Slingshot
+337,corfship,Anti-Swarm Ship,Brimstone
+338,corfus,Produces 1100 Energy,Fusion Reactor
+339,corgant,Produces Experimental Units,Experimental Gantry
+340,corgantuw,Produces Large Amphibious Units,Experimental Gantry
+341,corgarp,Light Amphibious Tank,Garpike
+342,corgate,Plasma Deflector,Overseer
+343,corgator,Light Tank,Incisor
+344,corgeo,Produces 300 Energy,Geothermal Powerplant
+345,corgol,Very Heavy Assault Tank,Tzar
+346,corgplat,Light Plasma Defense,Gun Platform
+347,corhal,Assault Hovertank,Halberd
+348,corhllt,Anti-Swarm Double Guard,Twin Guard
+349,corhlt,Area Control Laser Tower,Warden
+350,corhp,Builds Hovercraft,Hovercraft Platform
+351,corhrk,Heavy Rocket Bot,Arbiter
+352,corhunt,Advanced Radar / Sonar Plane,Watcher
+353,corhurc,Heavy Strategic Bomber,Hailstorm
+354,corhvytrans,Heavy Transport,Hephaestus
+355,corint,Long Range Plasma Cannon,Basilisk
+356,corintr,Amphibious Heavy Assault Transport,Intruder
+357,corjamt,Short-Range Jamming Device,Castro
+358,corjugg,(barely) Mobile Heavy Turret,Behemoth
+359,corjuno,Anti Radar / Jammer / Minefield / ScoutSpam Weapon,Juno
+360,corkarg,All-Terrain Assault Mech,Karganeth
+361,corkorg,Experimental Assault Bot,Juggernaut
+362,corlab,Produces Tech 1 Bots,Bot Lab
+363,corlevlr,Anti-Swarm Tank,Pounder
+364,corllt,Light Laser Tower,Guard
+365,cormabm,Mobile Anti-Nuke,Saviour
+366,cormadsam,Hardened Anti-Air Missile Battery,SAM
+367,cormakr,Converts 70 energy into 1 metal per sec,Energy Converter
+368,cormando,Stealthy Paratrooper Bot,Commando
+369,cormart,Mobile Artillery,Quaker
+370,cormaw,Pop-up Flamethrower Turret,Dragon's Maw
+371,cormex,Extracts Metal from Metalspots,Metal Extractor
+372,cormexp,Armed Advanced Metal Extractor,Advanced Exploiter
+373,cormh,Hovercraft Rocket Launcher,Mangonel
+374,cormine1,Light Mine,Light Mine
+375,cormine2,Medium Mine,Medium Mine
+376,cormine3,Heavy Mine,Heavy Mine
+377,cormine4,Medium Mine,Medium Mine
+378,cormist,Missile Truck,Lasher
+379,cormls,Naval Engineer,Pathfinder
+380,cormlv,Stealthy Minelayer / Minesweeper,Trapper
+381,cormmkr,Converts 600 energy into 10.3 metal per sec,Advanced Energy Converter
+382,cormoho,Advanced Metal Extractor / Storage,Advanced Metal Extractor
+383,cormort,Mobile Mortar Bot,Sheldon
+384,cormship,Cruise Missile Ship,Messenger
+385,cormstor,Increases Metal Storage (3000),Metal Storage
+386,cormuskrat,Amphibious Construction Vehicle,Muskrat
+387,cornanotc,Assist & Repair in large radius,Construction Turret
+388,cornanotc2plat,Assist & Repair in larger radius,Advanced Construction Turret
+389,cornanotcplat,Assist & Repair in large radius,Naval Construction Turret
+390,cornanotct2,Assist & Repair in larger radius,Advanced Construction Turret
+391,cornecro,Stealthy Rez / Reclaim / Repair Bot,Graverobber
+392,coronager,Coastal Assault Submarine,Onager
+393,corparrow,Very Heavy Amphibious Tank,Poison Arrow
+394,corphantom,Amphibious Stealth Scout,Phantom
+395,corplat,Builds Seaplanes,Seaplane Platform
+396,corprinter,Armored Field Engineer,Printer
+397,corpship,Assault Frigate,Riptide
+398,corpt,Missile Corvette / Light Anti Air / Sonar,Herring
+399,corpun,Area Control Plasma Artillery,Agitator
+400,corpyro,Fast Assault Bot,Fiend
+401,corrad,Early Warning System,Radar Tower
+402,corraid,Medium Assault Tank,Brute
+403,correap,Heavy Assault Tank,Tiger
+404,correcl,Resurrection Sub,Death Cavalry
+405,correspawn,Assist & Repair in massive radius.,Base Builder
+406,corrl,Light Anti-air Tower,Thistle
+407,corroach,Amphibious Crawling Bomb,Bedbug
+408,corroy,Destroyer,Oppressor
+409,corsala,Medium Heat Ray Amphibious Tank,Salamander
+410,corsat,Satellite,Satellite
+411,corsb,Seaplane Bomber,Dam Buster
+412,corscreamer,Long Range Anti-Air Tower,Screamer
+413,corsd,Intrusion Countermeasure System,Nemesis
+414,corseah,Heavy Assault Transport,Skyhook
+415,corseal,Medium Amphibious Tank,Alligator
+416,corseap,Torpedo Gunship,Monsoon
+417,corsent,Anti-Air Flak Vehicle,Fury
+418,corsentinel,Depth Charge Drone Carrier,Sentinel
+419,corsfig,Seaplane Swarmer,Bat
+420,corsfig2,Heavy AOE Seaplane Fighter,Bat
+421,corsh,Fast Attack Hovercraft,Goon
+422,corshad,Bomber,Whirlwind
+423,corshark,Fast Assault Submarine,Predator
+424,corshiva,Amphibious Siege Mech,Shiva
+425,corshroud,Long-Range Jamming Tower,Shroud
+426,corsiegebreaker,Heavy Long Range Destroyer,Siegebreaker
+427,corsilo,Nuclear ICBM Launcher,Apocalypse
+428,corsjam,Radar Jammer Ship,Phantasm
+429,corsktl,Advanced Amphibious Crawling Bomb,Skuttle
+430,corsnap,Hovertank,Cayman
+431,corsok,Heavy Laser Hovertank,Cataphract
+432,corsolar,Produces 20 Energy,Solar Collector
+433,corsonar,Locates Water Units,Sonar Station
+434,corspec,Radar Jammer Bot,Deceiver
+435,corspy,Radar-Invisible Spy Bot,Spectre
+436,corssub,Long-Range Battle Submarine,Kraken
+437,corstorm,Rocket Bot - good vs. static defenses,Aggravator
+438,corsub,Submarine,Orca
+439,corsumo,Heavily Armored Assault Bot,Mammoth
+440,corsy,Produces Tech 1 Ships,Shipyard
+441,cortarg,Enhanced Radar Targeting more facilities enhance accuracy,Pinpointer
+442,cortdrone,Drops Depth Charges,Depth Charge Drone
+443,cortermite,Heavy All-terrain Assault Spider,Termite
+444,corthovr,Heavy Transport Hovercraft,Caravan
+445,corthud,Light Plasma Bot,Thug
+446,cortide,Produces Energy (depends on map),Tidal Generator
+447,cortitan,Torpedo Bomber,Angler
+448,cortl,Offshore Torpedo Launcher,Urchin
+449,cortoast,Pop-up Plasma Artillery,Persecutor
+450,cortrem,Heavy Artillery Vehicle,Tremor
+451,cortron,Tactical Missile Launcher,Catalyst
+452,cortship,Armored Transport Ship,Coffin
+453,coruwadves,Increases Energy Storage (40000),Hardened Energy Storage
+454,coruwadvms,Increases Metal Storage (10000),Hardened Metal Storage
+455,coruwageo,Produces 1250 Energy (Hazardous),Advanced Geothermal Powerplant
+456,coruwes,Increases Energy Storage (6000),Naval Energy Storage
+457,coruwfus,Produces 1220 Energy,Naval Fusion Reactor
+458,coruwgeo,Produces 300 Energy,Offshore Geothermal Powerplant
+459,coruwmme,Advanced Metal Extractor / Storage,Naval Advanced Metal Extractor
+460,coruwmmm,Converts 600 energy into 10.3 metal per sec,Naval Advanced Energy Converter
+461,coruwms,Increases Metal Storage (3000),Naval Metal Storage
+462,corvac,Armored Field Engineer. 200 BP and +25 E. Can repair/reclaim while moving,Printer
+463,corvacct,units.descriptions.corvacct,units.names.corvacct
+464,corvalk,Light Air Transport,Hercules
+465,corvamp,Stealth Fighter,Nighthawk
+466,corveng,Fighter,Valiant
+467,corvipe,Pop-up Sabot Battery,Scorpion
+468,corvoyr,Radar Bot,Augur
+469,corvp,Produces Tech 1 Vehicles,Vehicle Plant
+470,corvrad,Radar Vehicle,Omen
+471,corvroc,Stealthy Rocket Launcher - good vs. static defense,Negotiator
+472,corwin,Produces Energy. Depends on wind strength.,Wind Turbine
+473,corwolv,Light Mobile Artillery,Wolverine
+474,critter_ant,Chaos!,Ant
+475,critter_crab,Pinch pinch!,Crab
+476,critter_duck,Quack Quack!,Duck
+477,critter_goldfish,Shiny!,Goldfish
+478,critter_gull,I'm so fly!,Seagull
+479,critter_penguin,So cool!,Penguin
+480,critter_penguinbro,So cool!,Penguin Bro
+481,critter_penguinking,So cool!,Penguin King
+482,dbg_sphere,debug sphere,dbg_sphere
+483,dbg_sphere_fullmetal,debug sphere,dbg_sphere
+484,dice,Dice,Dice
+485,dummycom,Picks a Random out of the available options,Random
+486,freefusion,Produces plenty of energy,Free Fusion Reactor
+487,legassistdrone,Portable Buildpower,Assist Drone
+488,legassistdrone_land,Portable Buildpower,Assist Vehicle
+489,legnanotcbase,Assist & Repair in massive radius,Base Builder
+490,lootboxbronze,Capture & Transport,Bronze Resource Generator
+491,lootboxgold,Capture & Transport,Gold Resource Generator
+492,lootboxnano_t1_var1,Portable Factory. Capture & Transport,Bronze Unit Printer
+493,lootboxnano_t1_var2,Portable Factory. Capture & Transport,Bronze Unit Printer
+494,lootboxnano_t1_var3,Portable Factory. Capture & Transport,Bronze Unit Printer
+495,lootboxnano_t1_var4,Portable Factory. Capture & Transport,Bronze Unit Printer
+496,lootboxnano_t1_var5,Portable Factory. Capture & Transport,Bronze Unit Printer
+497,lootboxnano_t1_var6,Portable Factory. Capture & Transport,Bronze Unit Printer
+498,lootboxnano_t1_var7,Portable Factory. Capture & Transport,Bronze Unit Printer
+499,lootboxnano_t1_var8,Portable Factory. Capture & Transport,Bronze Unit Printer
+500,lootboxnano_t1_var9,Portable Factory. Capture & Transport,Bronze Unit Printer
+501,lootboxnano_t2_var1,Portable Factory. Capture & Transport,Silver Unit Printer
+502,lootboxnano_t2_var2,Portable Factory. Capture & Transport,Silver Unit Printer
+503,lootboxnano_t2_var3,Portable Factory. Capture & Transport,Silver Unit Printer
+504,lootboxnano_t2_var4,Portable Factory. Capture & Transport,Silver Unit Printer
+505,lootboxnano_t2_var5,Portable Factory. Capture & Transport,Silver Unit Printer
+506,lootboxnano_t2_var6,Portable Factory. Capture & Transport,Silver Unit Printer
+507,lootboxnano_t2_var7,Portable Factory. Capture & Transport,Silver Unit Printer
+508,lootboxnano_t2_var8,Portable Factory. Capture & Transport,Silver Unit Printer
+509,lootboxnano_t2_var9,Portable Factory. Capture & Transport,Silver Unit Printer
+510,lootboxnano_t3_var1,Portable Factory. Capture & Transport,Gold Unit Printer
+511,lootboxnano_t3_var2,Portable Factory. Capture & Transport,Gold Unit Printer
+512,lootboxnano_t3_var3,Portable Factory. Capture & Transport,Gold Unit Printer
+513,lootboxnano_t3_var4,Portable Factory. Capture & Transport,Gold Unit Printer
+514,lootboxnano_t3_var5,Portable Factory. Capture & Transport,Gold Unit Printer
+515,lootboxnano_t3_var6,Portable Factory. Capture & Transport,Gold Unit Printer
+516,lootboxnano_t3_var7,Portable Factory. Capture & Transport,Gold Unit Printer
+517,lootboxnano_t3_var8,Portable Factory. Capture & Transport,Gold Unit Printer
+518,lootboxnano_t3_var9,Portable Factory. Capture & Transport,Gold Unit Printer
+519,lootboxnano_t4_var1,Portable Factory. Capture & Transport,Platinum Unit Printer
+520,lootboxnano_t4_var2,Portable Factory. Capture & Transport,Platinum Unit Printer
+521,lootboxnano_t4_var3,Portable Factory. Capture & Transport,Platinum Unit Printer
+522,lootboxnano_t4_var4,Portable Factory. Capture & Transport,Platinum Unit Printer
+523,lootboxnano_t4_var5,Portable Factory. Capture & Transport,Platinum Unit Printer
+524,lootboxnano_t4_var6,Portable Factory. Capture & Transport,Platinum Unit Printer
+525,lootboxnano_t4_var7,Portable Factory. Capture & Transport,Platinum Unit Printer
+526,lootboxnano_t4_var8,Portable Factory. Capture & Transport,Platinum Unit Printer
+527,lootboxnano_t4_var9,Portable Factory. Capture & Transport,Platinum Unit Printer
+528,lootboxplatinum,Capture & Transport,Platinum Resource Generator
+529,lootboxsilver,Capture & Transport,Silver Resource Generator
+530,lootdroppod_gold,Drops LOOT in your battle,Lootbox Droppod
+531,lootdroppod_printer,Drops PRINTER in your battle,Lootbox Droppod
+532,meteor,Falls out of the sky and kills you,Meteor
+533,mission_command_tower,Mission test unit,Command Tower
+534,nuketest,Spawning a new nuke,New Nuke Spawner
+535,nuketestcor,Spawning a new nuke,New Nuke Spawner
+536,nuketestorg,Spawning original Arm new nuke,Original Arm Nuke Spawner
+537,pbr_cube,Test PBR awesomeness,PBR Test Cube Thing
+538,resourcecheat,INFINITE RESOURCES,INFINITE RESOURCES
+539,xmasball1_1,Xmas ball,Xmas ball
+540,xmasball1_2,Xmas ball,Xmas ball
+541,xmasball1_3,Xmas ball,Xmas ball
+542,xmasball1_4,Xmas ball,Xmas ball
+543,xmasball1_5,Xmas ball,Xmas ball
+544,xmasball1_6,Xmas ball,Xmas ball
+545,xmasball2_1,Xmas ball,Xmas ball
+546,xmasball2_2,Xmas ball,Xmas ball
+547,xmasball2_3,Xmas ball,Xmas ball
+548,xmasball2_4,Xmas ball,Xmas ball
+549,xmasball2_5,Xmas ball,Xmas ball
+550,xmasball2_6,Xmas ball,Xmas ball
