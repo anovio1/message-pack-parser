@@ -128,7 +128,6 @@ class Team_stats_Schema(BaseModel):
     units_out_captured: int
     units_received: int
     units_sent: int
-    max_units: int
     current_unit_count: int
     metal_current: float
     metal_storage: float
