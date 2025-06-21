@@ -76,8 +76,12 @@ def ingest_defs_csv(directory_paths: List[str]) -> Optional[pl.DataFrame]:
             logger.info(f"Discovered definitions map at: {defs_csv_path}")
             try:
                 defs_map_df = (
-                    pl.read_csv(defs_csv_path, has_header=True, columns=["id", "name"])
-                    .rename({"id": "unit_def_id", "name": "unit_name"})
+                    pl.read_csv(
+                        defs_csv_path,
+                        has_header=True,
+                        columns=["id", "name", "translatedHumanName"],
+                    )
+                    .rename({"id": "unit_def_id", "name": "unit_name", "translatedHumanName": "translated_human_name"})
                     .with_columns(pl.col("unit_def_id").cast(pl.Int64))
                 )
 
@@ -94,6 +98,24 @@ def ingest_defs_csv(directory_paths: List[str]) -> Optional[pl.DataFrame]:
     logger.warning(
         "No 'defs.csv' file was found in any input directory. Stats requiring ID mapping may fail."
     )
+    return None
+
+
+def ingest_game_meta(input_dirs: List[str]) -> Optional[bytes]:
+    """
+    Finds and reads game_meta.json from the list of input directories.
+    Returns the first one found as raw bytes.
+    """
+    for directory in input_dirs:
+        filepath = os.path.join(directory, "game_meta.json")
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, "rb") as f:
+                    logger.info(f"Successfully ingested static asset: game_meta.json")
+                    return f.read()
+            except IOError as e:
+                logger.warning(f"Could not read game_meta.json at {filepath}: {e}")
+    logger.warning("Static asset 'game_meta.json' not found in any input directory.")
     return None
 
 

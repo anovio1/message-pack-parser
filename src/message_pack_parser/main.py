@@ -15,7 +15,7 @@ from message_pack_parser.core import output_transformer
 from message_pack_parser.core import output_generator
 from message_pack_parser.core.stats import UNAGGREGATED_STREAM_REGISTRY
 from message_pack_parser.logging_config import setup_logging
-from message_pack_parser.core.ingestion import ingest_defs_csv, load_mpk_files, list_recognized_aspects, load_unit_definitions
+from message_pack_parser.core.ingestion import ingest_defs_csv, ingest_game_meta, load_mpk_files, list_recognized_aspects, load_unit_definitions
 from message_pack_parser.core.decoder import stream_decode_aspect
 from message_pack_parser.core.cache_manager import save_to_cache, load_from_cache
 from message_pack_parser.core.value_transformer import stream_transform_aspect
@@ -234,6 +234,8 @@ def run(
             logger.info("No specific unaggregated streams requested via -u/--stream. Defaulting to 'command_log'.")
         
         logger.info("--- [Step 1] File Ingestion ---")
+
+        # Ingest all .mpk aspect files
         raw_mpk_data = load_mpk_files(input_dirs)
         if not raw_mpk_data:
             raise ParserError("Step 1 Ingestion Error: No MPK files were loaded.")
@@ -241,6 +243,9 @@ def run(
         
         # Ingest defs.csv from the same directories
         defs_map_df = ingest_defs_csv(input_dirs)
+        
+        # Ingest the static game_meta.json file
+        game_meta_bytes = ingest_game_meta(input_dirs)
     
         logger.info("--- [Pre-Step] Loading Context Data ---")
         # Build context using the ingested defs_map_df
@@ -292,6 +297,8 @@ def run(
             strategy=strategy_instance,
             transformed_aggregated_data=transformed_agg,
             transformed_unaggregated_data=transformed_unagg,
+            defs_df=defs_map_df,
+            game_meta_bytes=game_meta_bytes,
             output_directory=output_dir,
             replay_id=replay_id
         )

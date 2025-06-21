@@ -5,20 +5,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hybrid MPK+ZST Artifact Consumer</title>
     <style>
-      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; background-color: #f8f9fa; color: #212529; }
-      .container { max-width: 900px; margin: 2rem auto; padding: 2rem; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-      h1, h2, h3 { color: #343a40; border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; margin-top: 2rem; }
-      .controls { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-      label { font-weight: bold; }
-      select, button { padding: 0.5rem 1rem; border: 1px solid #ced4da; border-radius: 4px; font-size: 1rem; cursor: pointer; }
-      button { background-color: #007bff; color: white; border-color: #007bff; transition: background-color 0.2s; }
-      button:hover { background-color: #0056b3; }
-      #status { font-style: italic; color: #6c757d; margin-bottom: 1rem; white-space: pre-line; padding: 1em; background-color: #e9ecef; border-radius: 4px; }
-      pre { background-color: #e9ecef; padding: 1rem; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto; }
-      table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-      th, td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
-      th { background-color: #f1f3f5; }
-      .hidden { display: none; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        background-color: #f8f9fa;
+        color: #212529;
+      }
+      .container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      h1,
+      h2,
+      h3 {
+        color: #343a40;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+      }
+      label {
+        font-weight: bold;
+      }
+      select,
+      button {
+        padding: 0.5rem 1rem;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+        transition: background-color 0.2s;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      #status {
+        font-style: italic;
+        color: #6c757d;
+        margin-bottom: 1rem;
+        white-space: pre-line;
+        padding: 1em;
+        background-color: #e9ecef;
+        border-radius: 4px;
+      }
+      pre {
+        background-color: #e9ecef;
+        padding: 1rem;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 1rem;
+      }
+      th,
+      td {
+        border: 1px solid #dee2e6;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f1f3f5;
+      }
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -30,6 +102,17 @@
         <button id="load-button" disabled>Load and Parse Stream</button>
       </div>
       <div id="status">Loading... Please wait.</div>
+      <div id="static-assets-section" class="hidden">
+        <h2>Static Assets</h2>
+        <div id="game-meta-container" class="hidden">
+          <h3>Game Meta</h3>
+          <pre id="game-meta-output"></pre>
+        </div>
+        <div id="defs-map-container" class="hidden">
+          <h3>Definitions Map</h3>
+          <pre id="defs-map-output"></pre>
+        </div>
+      </div>
       <div id="stream-info-section" class="hidden">
         <h3>Selected Stream Schema</h3>
         <pre id="stream-schema-output"></pre>
@@ -50,9 +133,23 @@
         const loadButton = document.getElementById("load-button");
         const statusDiv = document.getElementById("status");
         const fullSchemaOutput = document.getElementById("full-schema-output");
-        const streamInfoSection = document.getElementById("stream-info-section");
-        const streamSchemaOutput = document.getElementById("stream-schema-output");
+        const streamInfoSection = document.getElementById(
+          "stream-info-section"
+        );
+        const streamSchemaOutput = document.getElementById(
+          "stream-schema-output"
+        );
         const parsedDataOutput = document.getElementById("parsed-data-output");
+
+        const staticAssetsSection = document.getElementById(
+          "static-assets-section"
+        );
+        const gameMetaContainer = document.getElementById(
+          "game-meta-container"
+        );
+        const gameMetaOutput = document.getElementById("game-meta-output");
+        const defsMapContainer = document.getElementById("defs-map-container");
+        const defsMapOutput = document.getElementById("defs-map-output");
 
         const REPLAY_ID = "test_replay_id";
         const ARTIFACT_PATH = `./${REPLAY_ID}.mpk.zst`;
@@ -62,30 +159,42 @@
         try {
           statusDiv.textContent = `Fetching artifact: ${ARTIFACT_PATH}...`;
           const response = await fetch(ARTIFACT_PATH);
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}. Is your local server running?`);
-          
+          if (!response.ok)
+            throw new Error(
+              `HTTP error! status: ${response.status}. Is your local server running?`
+            );
+
           const compressedBuffer = await response.arrayBuffer();
           statusDiv.textContent = `Decompressing ${compressedBuffer.byteLength} bytes...`;
           const packedBytes = zstd.decompress(new Uint8Array(compressedBuffer));
-          
+
           statusDiv.textContent = `Decompressed. Parsing ${packedBytes.byteLength} MessagePack bytes...`;
           artifact = decode(packedBytes);
 
           const schema = artifact.schema;
           fullSchemaOutput.textContent = JSON.stringify(schema, null, 2);
+
+          displayStaticAssets(artifact);
+
           const streamNames = Object.keys(schema.streams);
-          if (streamNames.length === 0) throw new Error("Artifact parsed, but the 'streams' object is empty.");
+          if (streamNames.length === 0)
+            throw new Error(
+              "Artifact parsed, but the 'streams' object is empty."
+            );
 
           streamSelect.innerHTML = "";
-          streamNames.forEach(name => streamSelect.appendChild(new Option(name, name)));
-          
+          streamNames.forEach((name) =>
+            streamSelect.appendChild(new Option(name, name))
+          );
+
           updateStreamSchemaDisplay();
           streamSelect.addEventListener("change", updateStreamSchemaDisplay);
           loadButton.addEventListener("click", parseSelectedStream);
 
           streamSelect.disabled = false;
           loadButton.disabled = false;
-          statusDiv.textContent = 'Hybrid artifact loaded. Select a stream and click "Load and Parse Stream".';
+          statusDiv.textContent =
+            'Hybrid artifact loaded. Select a stream and click "Load and Parse Stream".';
         } catch (error) {
           statusDiv.textContent = `Error loading artifact: ${error.message}\n\nMake sure you have run the Python script to generate the '${REPLAY_ID}.mpk.zst' file and are serving this page from a local web server (e.g., 'python -m http.server').`;
           console.error("Artifact load error:", error);
@@ -95,7 +204,11 @@
         function updateStreamSchemaDisplay() {
           const selectedStreamName = streamSelect.value;
           if (artifact && artifact.schema.streams[selectedStreamName]) {
-            streamSchemaOutput.textContent = JSON.stringify(artifact.schema.streams[selectedStreamName], null, 2);
+            streamSchemaOutput.textContent = JSON.stringify(
+              artifact.schema.streams[selectedStreamName],
+              null,
+              2
+            );
             streamInfoSection.classList.remove("hidden");
           } else {
             streamInfoSection.classList.add("hidden");
@@ -111,24 +224,82 @@
 
           try {
             const streamInfo = artifact.schema.streams[selectedStreamName];
-            if (!streamInfo) throw new Error(`Stream '${selectedStreamName}' not found in schema.`);
+            if (!streamInfo)
+              throw new Error(
+                `Stream '${selectedStreamName}' not found in schema.`
+              );
 
             let parsedData;
             if (streamInfo.layout === "row-major-mixed") {
               const dataBlob = artifact.data[streamInfo.data_key];
-              if (!dataBlob) throw new Error(`Data blob not found for key: ${streamInfo.data_key}`);
+              if (!dataBlob)
+                throw new Error(
+                  `Data blob not found for key: ${streamInfo.data_key}`
+                );
               // msgpack decodes binary data into Uint8Array. We need its underlying ArrayBuffer.
-              const dataBuffer = dataBlob.buffer.slice(dataBlob.byteOffset, dataBlob.byteOffset + dataBlob.byteLength);
+              const dataBuffer = dataBlob.buffer.slice(
+                dataBlob.byteOffset,
+                dataBlob.byteOffset + dataBlob.byteLength
+              );
               parsedData = parseRowMajorBuffer(dataBuffer, streamInfo);
-            } else { // Default to columnar
+            } else {
+              // Default to columnar
               parsedData = parseColumnarBuffer(artifact.data, streamInfo);
             }
 
-            parsedDataOutput.innerHTML = renderTable(parsedData, streamInfo.columns);
+            parsedDataOutput.innerHTML = renderTable(
+              parsedData,
+              streamInfo.columns
+            );
             statusDiv.textContent = `Successfully parsed ${parsedData.length} rows from '${selectedStreamName}'.`;
           } catch (error) {
             statusDiv.textContent = `Error processing stream: ${error.message}`;
             console.error("Processing error:", error);
+          }
+        }
+
+        function displayStaticAssets(artifact) {
+          const schema = artifact.schema;
+          const data = artifact.data;
+
+          if (!schema.static_assets || schema.static_assets.length === 0) {
+            return; // No static assets to display
+          }
+
+          staticAssetsSection.classList.remove("hidden");
+
+          // Handle game_meta.json
+          if (schema.static_assets.includes("game_meta")) {
+            const meta_blob = data.game_meta;
+            if (meta_blob) {
+              try {
+                const meta_string = new TextDecoder().decode(meta_blob);
+                const meta_json = JSON.parse(meta_string);
+                gameMetaOutput.textContent = JSON.stringify(meta_json, null, 2);
+                gameMetaContainer.classList.remove("hidden");
+              } catch (e) {
+                gameMetaOutput.textContent = `Error parsing game_meta: ${e.message}`;
+              }
+            }
+          }
+
+          // Handle defs_map
+          if (schema.static_assets.includes("defs_map")) {
+            const defs_blob = data.defs_map;
+            if (defs_blob) {
+              try {
+                // The defs_map is a nested MessagePack object
+                const decoded_defs_map = decode(defs_blob);
+                defsMapOutput.textContent = JSON.stringify(
+                  decoded_defs_map,
+                  null,
+                  2
+                );
+                defsMapContainer.classList.remove("hidden");
+              } catch (e) {
+                defsMapOutput.textContent = `Error parsing defs_map: ${e.message}`;
+              }
+            }
           }
         }
 
@@ -145,13 +316,17 @@
             let currentOffsetInRow = 0;
 
             for (const column of columns) {
-              const [rawValue, bytesRead] = readValueFromView(dataView, rowStartOffset + currentOffsetInRow, column.dtype);
+              const [rawValue, bytesRead] = readValueFromView(
+                dataView,
+                rowStartOffset + currentOffsetInRow,
+                column.dtype
+              );
               let finalValue = rawValue;
-              
+
               if (column.transform && column.transform.scale) {
-                 finalValue = Number(rawValue) * column.transform.scale;
+                finalValue = Number(rawValue) * column.transform.scale;
               }
-              
+
               rowObject[column.name] = finalValue;
               currentOffsetInRow += bytesRead;
             }
@@ -167,10 +342,18 @@
           const columnArrays = {};
           for (const column of columns) {
             const blob = dataBlobs[column.data_key];
-            if (!blob) throw new Error(`Data blob not found for key: ${column.data_key}`);
-            
-            const typedArrayConstructor = getTypedArrayConstructor(column.dtype);
-            const buffer = blob.buffer.slice(blob.byteOffset, blob.byteOffset + blob.length);
+            if (!blob)
+              throw new Error(
+                `Data blob not found for key: ${column.data_key}`
+              );
+
+            const typedArrayConstructor = getTypedArrayConstructor(
+              column.dtype
+            );
+            const buffer = blob.buffer.slice(
+              blob.byteOffset,
+              blob.byteOffset + blob.length
+            );
             columnArrays[column.name] = new typedArrayConstructor(buffer);
           }
 
@@ -178,7 +361,7 @@
             const rowObject = {};
             for (const column of columns) {
               const rawValue = columnArrays[column.name][i];
-              
+
               let finalValue = rawValue;
               if (column.transform && column.transform.scale) {
                 finalValue = Number(rawValue) * column.transform.scale;
@@ -194,48 +377,78 @@
 
         function getTypedArrayConstructor(dtype) {
           const map = {
-            "Int8": Int8Array, "UInt8": Uint8Array,
-            "Int16": Int16Array, "UInt16": Uint16Array,
-            "Int32": Int32Array, "UInt32": Uint32Array,
-            "Int64": BigInt64Array, "UInt64": BigUint64Array,
-            "Float32": Float32Array, "Float64": Float64Array,
+            Int8: Int8Array,
+            UInt8: Uint8Array,
+            Int16: Int16Array,
+            UInt16: Uint16Array,
+            Int32: Int32Array,
+            UInt32: Uint32Array,
+            Int64: BigInt64Array,
+            UInt64: BigUint64Array,
+            Float32: Float32Array,
+            Float64: Float64Array,
           };
           const constructor = map[dtype];
-          if (!constructor) throw new Error(`No TypedArray for dtype: ${dtype}`);
+          if (!constructor)
+            throw new Error(`No TypedArray for dtype: ${dtype}`);
           return constructor;
         }
 
         function readValueFromView(dataView, offset, dtype) {
           // The 'true' argument specifies little-endian byte order, matching our Python struct.
           switch (dtype) {
-            case "Int8":    return [dataView.getInt8(offset), 1];
-            case "UInt8":   return [dataView.getUint8(offset), 1];
-            case "Int16":   return [dataView.getInt16(offset, true), 2];
-            case "UInt16":  return [dataView.getUint16(offset, true), 2];
-            case "Int32":   return [dataView.getInt32(offset, true), 4];
-            case "UInt32":  return [dataView.getUint32(offset, true), 4];
-            case "Int64":   return [dataView.getBigInt64(offset, true), 8];
-            case "UInt64":  return [dataView.getBigUint64(offset, true), 8];
-            case "Float32": return [dataView.getFloat32(offset, true), 4];
-            case "Float64": return [dataView.getFloat64(offset, true), 8];
+            case "Int8":
+              return [dataView.getInt8(offset), 1];
+            case "UInt8":
+              return [dataView.getUint8(offset), 1];
+            case "Int16":
+              return [dataView.getInt16(offset, true), 2];
+            case "UInt16":
+              return [dataView.getUint16(offset, true), 2];
+            case "Int32":
+              return [dataView.getInt32(offset, true), 4];
+            case "UInt32":
+              return [dataView.getUint32(offset, true), 4];
+            case "Int64":
+              return [dataView.getBigInt64(offset, true), 8];
+            case "UInt64":
+              return [dataView.getBigUint64(offset, true), 8];
+            case "Float32":
+              return [dataView.getFloat32(offset, true), 4];
+            case "Float64":
+              return [dataView.getFloat64(offset, true), 8];
             default:
               throw new Error(`Unsupported dtype for DataView: ${dtype}`);
           }
         }
 
         function renderTable(parsedData, columns) {
-          if (!parsedData || parsedData.length === 0) return "<em>No data rows found.</em>";
-          const headers = columns.map(col => `<th>${col.name}</th>`).join("");
-          const rows = parsedData.slice(0, 100).map(row => { // Display first 100 rows
-            const cells = columns.map(col => {
-              const value = row[col.name];
-              if (typeof value === 'bigint') return `<td>${value.toString()}</td>`;
-              if (typeof value === 'number' && !Number.isInteger(value)) return `<td>${value.toFixed(4)}</td>`;
-              return `<td>${value}</td>`;
-            }).join("");
-            return `<tr>${cells}</tr>`;
-          }).join("");
-          let footer = parsedData.length > 100 ? `<tr><td colspan="${columns.length}"><i>... and ${parsedData.length - 100} more rows.</i></td></tr>` : "";
+          if (!parsedData || parsedData.length === 0)
+            return "<em>No data rows found.</em>";
+          const headers = columns.map((col) => `<th>${col.name}</th>`).join("");
+          const rows = parsedData
+            .slice(0, 100)
+            .map((row) => {
+              // Display first 100 rows
+              const cells = columns
+                .map((col) => {
+                  const value = row[col.name];
+                  if (typeof value === "bigint")
+                    return `<td>${value.toString()}</td>`;
+                  if (typeof value === "number" && !Number.isInteger(value))
+                    return `<td>${value.toFixed(4)}</td>`;
+                  return `<td>${value}</td>`;
+                })
+                .join("");
+              return `<tr>${cells}</tr>`;
+            })
+            .join("");
+          let footer =
+            parsedData.length > 100
+              ? `<tr><td colspan="${columns.length}"><i>... and ${
+                  parsedData.length - 100
+                } more rows.</i></td></tr>`
+              : "";
           return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}${footer}</tbody></table>`;
         }
       });

@@ -7,6 +7,15 @@ from typing import Dict, Any
 
 # Contracts here should match expected input of downstream consumer (tubuin-react)
 
+# static assets, sidecars
+#   defs_contract: see ingestion.py
+defs_contract = {
+    "transform": "to_lookup_map",
+    "params": {
+        "key_column": "unit_def_id",
+        "value_columns": ["unit_name", "translated_human_name"]
+    }
+}
 
 # Add other contracts that require this layout...
 army_value_timeline_contract = {
@@ -72,4 +81,5 @@ OUTPUT_CONTRACTS: Dict[str, Dict[str, Any]] = {
     "army_value_timeline": army_value_timeline_contract,
     "unit_positions": unit_positions_contract,
     "unit_events": unit_events_contract,
+    "defs": defs_contract
 }

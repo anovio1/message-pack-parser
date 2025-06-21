@@ -9,7 +9,7 @@ import os
 import struct
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, Tuple, Type, Any
+from typing import Dict, Optional, Tuple, Type, Any
 from datetime import datetime, timezone
 
 import polars as pl
@@ -53,7 +53,10 @@ def _get_struct_format_string(dtypes: list[pl.DataType]) -> str:
         format_chars.append(char)
     return "".join(format_chars)
 
-def _prepare_df_for_row_major_packing(df: pl.DataFrame, metadata: Dict, stream_name: str) -> pl.DataFrame:
+
+def _prepare_df_for_row_major_packing(
+    df: pl.DataFrame, metadata: Dict, stream_name: str
+) -> pl.DataFrame:
     """
     Checks a DataFrame for nulls and applies the null_encoding from the contract.
     This ensures the DataFrame is safe for struct.pack().
@@ -65,7 +68,7 @@ def _prepare_df_for_row_major_packing(df: pl.DataFrame, metadata: Dict, stream_n
     # If there are nulls, the contract MUST provide the rule.
     table_options = metadata.get("table", {})
     null_encoding_value = table_options.get("null_encoding")
-    
+
     if null_encoding_value is None:
         # Fail loudly and clearly if the rule is missing.
         raise OutputGenerationError(
@@ -73,10 +76,13 @@ def _prepare_df_for_row_major_packing(df: pl.DataFrame, metadata: Dict, stream_n
             "in output_contracts.py is missing the 'table_options.null_encoding' key. "
             "Please add this key to define how nulls should be encoded (e.g., 0)."
         )
-    
+
     # If the rule exists, apply it and return the prepared DataFrame.
-    logger.debug(f"Applying null encoding '{null_encoding_value}' to stream '{stream_name}'.")
+    logger.debug(
+        f"Applying null encoding '{null_encoding_value}' to stream '{stream_name}'."
+    )
     return df.fill_null(null_encoding_value)
+
 
 class OutputStrategy(ABC):
     """Abstract base class using the Template Method design pattern."""
@@ -85,6 +91,8 @@ class OutputStrategy(ABC):
         self,
         transformed_aggregated_data: Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]],
         transformed_unaggregated_data: Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]],
+        defs_df: pl.DataFrame,
+        game_meta_bytes: Optional[bytes],
         output_directory: str,
         replay_id: str,
     ) -> None:
@@ -95,7 +103,13 @@ class OutputStrategy(ABC):
 
         try:
             # All common setup is done here. Subclasses just need to write.
-            self._execute_write(all_streams, output_directory, replay_id)
+            self._execute_write(
+                all_streams=all_streams,
+                defs_df=defs_df,
+                game_meta_bytes=game_meta_bytes,
+                output_directory=output_directory,
+                replay_id=replay_id,
+            )
         except Exception as e:
             # Centralized error wrapping for all strategies.
             raise OutputGenerationError(
@@ -106,6 +120,8 @@ class OutputStrategy(ABC):
     def _execute_write(
         self,
         all_streams: Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]],
+        defs_df: pl.DataFrame,
+        game_meta_bytes: Optional[bytes],
         output_directory: str,
         replay_id: str,
     ) -> None:
@@ -144,7 +160,9 @@ class HybridMessagePackZstStrategy(OutputStrategy):
             layout = table_options.get("layout", "columnar")
             if layout == "row-major-mixed":
                 try:
-                    df_prepared = _prepare_df_for_row_major_packing(df, metadata, stream_name)
+                    df_prepared = _prepare_df_for_row_major_packing(
+                        df, metadata, stream_name
+                    )
                     format_string = _get_struct_format_string(df_prepared.dtypes)
                     packer = struct.Struct(format_string)
 
@@ -188,14 +206,69 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                 }
         return streams_schema, data_blobs
 
-    def _execute_write(self, all_streams, output_directory, replay_id) -> None:
+    def _execute_write(
+        self,
+        all_streams,
+        defs_df: pl.DataFrame,
+        game_meta_bytes: Optional[bytes],
+        output_directory,
+        replay_id,
+    ) -> None:
         os.makedirs(output_directory, exist_ok=True)
         streams_schema, data_payloads = self._build_payloads(all_streams)
+
+        # 1. Handle the static game_meta.json asset.
+        if game_meta_bytes:
+            data_payloads["game_meta"] = game_meta_bytes
+
+        # 2. Handle the defs_df by transforming it into a lookup map.
+        if defs_df is not None and not defs_df.is_empty():
+            # 1. Look up the contract for the 'defs' data.
+            # Static asset handling (contract-driven). See OUTPUT_TRANSFORMATION_CONFIG for schema.
+            from message_pack_parser.config.dynamic_config_builder import (
+                OUTPUT_TRANSFORMATION_CONFIG,
+            )
+
+            defs_contract = OUTPUT_TRANSFORMATION_CONFIG.get("defs", {})
+
+            if defs_contract.get("transform") == "to_lookup_map":
+                params = defs_contract.get("params", {})
+                key_col = params.get("key_column")
+                value_cols = params.get("value_columns")
+
+                if not key_col or not value_cols:
+                    raise OutputGenerationError(
+                        "The 'defs' contract is missing 'key_column' or 'value_columns'."
+                    )
+
+                try:
+                    # 2. Build the map using the column names from the contract.
+                    defs_map = {
+                        row[key_col]: [row[col] for col in value_cols]
+                        for row in defs_df.to_dicts()
+                    }
+                    # Pack this dictionary into a single MessagePack binary blob.
+                    data_payloads["defs_map"] = msgpack.packb(
+                        defs_map, use_bin_type=True
+                    )
+                except KeyError as e:
+                    # 3. Fail loudly if a column from the contract doesn't exist in the DataFrame.
+                    raise OutputGenerationError(
+                        f"Failed to build defs_map. Column '{e}' from contract not found in defs_df."
+                    )
+
+        static_asset_keys = []
+        if game_meta_bytes:
+            static_asset_keys.append("game_meta")
+        if defs_df is not None:
+            static_asset_keys.append("defs_map")
+
         master_object = {
             "schema": {
                 "replay_id": replay_id,
                 "schema_version": "8.2-hybrid-mpk",
                 "generated_at": datetime.now(timezone.utc).isoformat(),
+                "static_assets": static_asset_keys,
                 "streams": streams_schema,
             },
             "data": data_payloads,
@@ -214,7 +287,14 @@ class HybridMessagePackZstStrategy(OutputStrategy):
 class RowMajorBundleZstStrategy(OutputStrategy):
     """Creates a schema.json and one zstd-compressed binary file per row-major table."""
 
-    def _execute_write(self, all_streams, output_directory, replay_id) -> None:
+    def _execute_write(
+        self,
+        all_streams,
+        defs_df: pl.DataFrame,
+        game_meta_bytes: Optional[bytes],
+        output_directory,
+        replay_id,
+    ) -> None:
         replay_output_dir = os.path.join(output_directory, replay_id)
         os.makedirs(replay_output_dir, exist_ok=True)
         schema = {
@@ -229,7 +309,9 @@ class RowMajorBundleZstStrategy(OutputStrategy):
                 continue
 
             try:
-                df_prepared = _prepare_df_for_row_major_packing(df, metadata, stream_name)
+                df_prepared = _prepare_df_for_row_major_packing(
+                    df, metadata, stream_name
+                )
 
                 format_string = _get_struct_format_string(df.dtypes)
                 packer = struct.Struct(format_string)
@@ -255,8 +337,10 @@ class RowMajorBundleZstStrategy(OutputStrategy):
                             "name": name,
                             "dtype": str(dtype),
                             # Document the rule that was applied.
-                            "null_encoding": table_options.get("null_encoding"), 
-                            "transform": metadata.get("columns", {}).get(name, {"transform": "none"})
+                            "null_encoding": table_options.get("null_encoding"),
+                            "transform": metadata.get("columns", {}).get(
+                                name, {"transform": "none"}
+                            ),
                         }
                         for name, dtype in df_prepared.schema.items()
                     ],
@@ -276,7 +360,14 @@ class RowMajorBundleZstStrategy(OutputStrategy):
 class ColumnarBundleZstStrategy(OutputStrategy):
     """Creates a schema.json and one zstd-compressed binary file per column."""
 
-    def _execute_write(self, all_streams, output_directory, replay_id) -> None:
+    def _execute_write(
+        self,
+        all_streams,
+        defs_df: pl.DataFrame,
+        game_meta_bytes: Optional[bytes],
+        output_directory,
+        replay_id,
+    ) -> None:
         replay_output_dir = os.path.join(output_directory, replay_id)
         os.makedirs(replay_output_dir, exist_ok=True)
         schema = {
@@ -326,7 +417,14 @@ class ColumnarBundleZstStrategy(OutputStrategy):
 class ParquetDirectoryStrategy(OutputStrategy):
     """Writes each data stream to its own .parquet file."""
 
-    def _execute_write(self, all_streams, output_directory, replay_id) -> None:
+    def _execute_write(
+        self,
+        all_streams,
+        defs_df: pl.DataFrame,
+        game_meta_bytes: Optional[bytes],
+        output_directory,
+        replay_id,
+    ) -> None:
         replay_output_dir = os.path.join(output_directory, replay_id)
         os.makedirs(replay_output_dir, exist_ok=True)
         for stream_name, (df, _) in all_streams.items():
@@ -349,7 +447,14 @@ class JsonLinesGzipStrategy(OutputStrategy):
             df.write_ndjson(f_gz)
         logger.info(f"Successfully wrote gzipped JSON Lines output to: {output_path}")
 
-    def _execute_write(self, all_streams, output_directory, replay_id) -> None:
+    def _execute_write(
+        self,
+        all_streams,
+        defs_df: pl.DataFrame,
+        game_meta_bytes: Optional[bytes],
+        output_directory,
+        replay_id,
+    ) -> None:
         replay_output_dir = os.path.join(output_directory, replay_id)
         os.makedirs(replay_output_dir, exist_ok=True)
         for stream_name, (df, _) in all_streams.items():
@@ -360,7 +465,14 @@ class JsonLinesGzipStrategy(OutputStrategy):
 class MessagePackGzipStrategy(OutputStrategy):
     """Writes a single, gzipped MessagePack file (legacy format)."""
 
-    def _execute_write(self, all_streams, output_directory, replay_id) -> None:
+    def _execute_write(
+        self,
+        all_streams,
+        defs_df: pl.DataFrame,
+        game_meta_bytes: Optional[bytes],
+        output_directory,
+        replay_id,
+    ) -> None:
         os.makedirs(output_directory, exist_ok=True)
         # We ignore metadata for this legacy format
         payload = {name: df.to_dicts() for name, (df, _) in all_streams.items()}
