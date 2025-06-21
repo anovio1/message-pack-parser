@@ -13,6 +13,7 @@ from enum import Enum
 from message_pack_parser.context import build_execution_context
 from message_pack_parser.core import output_transformer
 from message_pack_parser.core import output_generator
+from message_pack_parser.core.stats import UNAGGREGATED_STREAM_REGISTRY
 from message_pack_parser.logging_config import setup_logging
 from message_pack_parser.core.ingestion import ingest_defs_csv, load_mpk_files, list_recognized_aspects, load_unit_definitions
 from message_pack_parser.core.decoder import stream_decode_aspect
@@ -50,10 +51,10 @@ def _validate_stats_callback(
     value: Optional[List[str]]
 ):
     """
-    Callback to validate that provided stat names are valid.
+    Callback to validate that provided aggregated names are valid.
     """
     if not value:
-        # If the user provides no --compute-stat options, the value is None.
+        # If the user provides no --stat options, the value is None.
         # We must return an empty list to satisfy Typer's expectation of a sequence.
         return []
     
@@ -63,8 +64,17 @@ def _validate_stats_callback(
             raise typer.BadParameter(f"Invalid stat '{stat_name}'. Choose from: {list(valid_stats)}")
     return value
 
+def _validate_streams_callback(ctx: typer.Context, param: typer.CallbackParam, value: Optional[List[str]]):
+    """Callback to validate that provided unaggregated stream names are valid."""
+    if not value: return []
+    valid_streams = UNAGGREGATED_STREAM_REGISTRY.keys()
+    for stream_name in value:
+        if stream_name not in valid_streams:
+            raise typer.BadParameter(f"Invalid stream '{stream_name}'. Valid options include: {list(valid_streams)}")
+    return value
 
-# Dynamically generate help text for the --compute-stat option
+
+# Dynamically generate help text for the --stat option
 stats_help_text = "Stat to compute. Use 'parser list-stats' to see all options. If not provided, default stats will be computed."
 for name, stat in STATS_REGISTRY.items():
     stats_help_text += f"- {name}: {stat.description}\n"
@@ -176,11 +186,17 @@ def run(
     cache_dir: str = typer.Option(..., "--cache-dir", "-c", help="Directory for intermediate cached data."),
     output_dir: str = typer.Option(..., "--output-dir", "-o", help="Directory for the final compressed output."),
     output_format: OutputFormat = typer.Option(OutputFormat.MPK_GZIP, "--output-format", "-f", help="The format for the final output.", case_sensitive=False),
-    compute_stat: Optional[List[str]] = typer.Option(
-        [], "--compute-stat", "-s",
-        help=stats_help_text,
+    stats_to_run: Optional[List[str]] = typer.Option(
+        [], "--stat", "-s",
+        help="Stat to compute and output. Can be used multiple times. If none are provided, default stats are computed.",
         callback=_validate_stats_callback,
-        show_default=False # Prevents showing 'None' as default in help
+        show_default=False
+    ),
+    unaggregated_streams_to_run: Optional[List[str]] = typer.Option(
+        [], "--stream", "-u",
+        help="Unaggregated stream to output (e.g., 'unit_positions'). Can be used multiple times. If none, only 'command_log' is output by default.",
+        callback=_validate_streams_callback,
+        show_default=False
     ),
     serial: bool = typer.Option(
         False, 
@@ -213,6 +229,9 @@ def run(
         logger.info("--- [Step 0] Configuration Validation ---")
         validate_configurations()
         
+        if not unaggregated_streams_to_run:
+            unaggregated_streams_to_run = ["unit_events", "unit_positions", "start_pos", "team_stats", "damage_log"]
+            logger.info("No specific unaggregated streams requested via -u/--stream. Defaulting to 'command_log'.")
         
         logger.info("--- [Step 1] File Ingestion ---")
         raw_mpk_data = load_mpk_files(input_dirs)
@@ -250,19 +269,23 @@ def run(
         # --- Steps 6 - 8 are always serial ---
         logger.info("--- [Step 6] Data Aggregation ---")
         stage_start_time = time.perf_counter()
-        stats_to_run = compute_stat if compute_stat is not None else []
-        aggregated_stats, unaggregated_df = perform_aggregations(dataframes, stats_to_run)
+        aggregated_stats, unaggregated_streams = perform_aggregations(
+            dataframes_by_aspect=dataframes, 
+            stats_to_compute=stats_to_run,
+            unaggregated_streams_to_compute=unaggregated_streams_to_run
+            # unaggregated_streams_to_compute=unaggregated_streams_to_run
+        )
         logger.info(f"Stage complete in {time.perf_counter() - stage_start_time:.2f}s.")
 
         logger.info("--- [Step 7] Output Transformation ---")
         stage_start_time = time.perf_counter()
-        stats_to_run = compute_stat if compute_stat is not None else []
+        stats_to_run = stats_to_run if stats_to_run is not None else []
         transformed_agg, transformed_unagg = output_transformer.apply_output_transformations(
-            aggregated_stats, unaggregated_df
-            )
+            aggregated_stats, unaggregated_streams
+        )
         logger.info(f"Stage complete in {time.perf_counter() - stage_start_time:.2f}s.")
         
-        logger.info("--- [Step 7] Final Output Generation ---")
+        logger.info("--- [Step 8] Final Output Generation ---")
         stage_start_time = time.perf_counter()
         strategy_instance = STRATEGY_MAP[output_format]()
         generate_output(
@@ -297,10 +320,18 @@ def cli_list_aspects():
 @app.command(name="list-stats")
 def cli_list_stats():
     """Lists all available aggregation statistics with their descriptions."""
-    typer.echo("Available aggregation stats (--compute-stat or -s):")
+    typer.echo("Available aggregation stats (--stat or -s):")
     for name, stat in STATS_REGISTRY.items():
         default_marker = "[DEFAULT]" if stat.default_enabled else ""
         typer.echo(f"  - {name:<25} {default_marker:<10} {stat.description}")
+        
+@app.command(name="list-streams")
+def cli_list_streams():
+    """Lists all available unaggregated data streams."""
+    typer.echo("Available unaggregated data streams (--stream or -u):")
+    # --- NEW: Command to list available streams ---
+    for stream_name in sorted(UNAGGREGATED_STREAM_REGISTRY.keys()):
+        typer.echo(f"  - {stream_name}")
 
 if __name__ == "__main__":
     app()

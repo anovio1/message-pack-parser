@@ -1,3 +1,4 @@
+# src\message_pack_parser\core\stats\unaggregated.py
 """
 Defines functions that produce detailed, unaggregated data streams.
 """

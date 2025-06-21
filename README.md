@@ -8,23 +8,60 @@ A parallelized processor for ingesting, processing, and aggregating data from `.
 
 This tool is designed to be robust, efficient, and extensible, using a modern Python stack including Pydantic, Polars, and Typer.
 
+### Quick Run
+
+`mpp-parser run -i example/i -o example/o -c example/c test_replay_id --log-level DEBUG --output-format hybrid-mpk-zst`
+
 ## Core Features
 
 - **Schema-Driven Configuration:** A single source of truth (`aspects_raw.py`) defines both the raw data structure and all transformation rules (dequantization, enum mapping), eliminating configuration drift.
 - **Contract-Driven Output Transformation:** A second source of truth (output_contracts.py) defines how aggregated data should be transformed (e.g., quantized, cast) for specific downstream consumers.
 - **Multiple Output Formats:** Supports various output formats suitable for different downstream consumers (e.g., MessagePack, Parquet, JSON Lines), and Columnar/Row-major binary formats for web front ends
 - **Pluggable Analytics:** New summary statistics can be added as simple drop-in Python files without modifying the core processing engine.
-- **Configurable Aggregation:** Users can select which summary statistics to compute at runtime.
-- **High-Performance Processing:**
-  - **Parallel Execution:** Leverages `ProcessPoolExecutor` to process multiple large data files concurrently, maximizing CPU usage.
-  - **Streaming Decoder:** Uses a streaming `msgpack.Unpacker` to handle arbitrarily large aspect files with minimal memory footprint.
-  - **Polars Backend:** Employs the high-performance Polars DataFrame library for all data structuring and aggregation tasks.
-- **Robust and Maintainable:**
-  - **Robust Caching:** An intelligent caching layer (with version validation) speeds up repeated runs in serial mode.
-  - **Explicit Data Contracts:** Uses Pydantic schemas to ensure data integrity at every step.
-  - **Granular Error Handling:** A custom exception hierarchy allows for specific and meaningful error reporting.
-  - **Centralized Logging:** Configurable logging provides clear insight into the pipeline's execution.
-- **Ergonomic Command-Line Interface:** A clean, self-documenting CLI built with `Typer` provides auto-generated help, progress bars, and flexible options for development and production use.
+
+## Flow
+```mermaid
+graph TD
+  %% Input & Config
+  subgraph Input_and_Config
+    A["CLI Command"]
+    B["Pre-processing Rules"]
+    C["Post-processing Rules"]
+  end
+
+  %% Pipeline
+  subgraph Pipeline
+    P1["1: Ingest"]
+    P2["2: Decode"]
+    P3["3: Cache (optional)"]
+    P4["4: Transform"]
+    P5["5: DataFrames"]
+    P6["6: Aggregate"]
+    P7["7: Output Transform"]
+    P8["8: Finalize Output"]
+  end
+
+  %% Output
+  subgraph Output
+    D["Artifacts (.mpk.zst, .json, .bin.zst)"]
+  end
+
+  %% Flow
+  A --> P1
+  P1 --> P2
+  B --> P2
+  P2 --> P3
+  P3 --> P4
+  B --> P4
+  P4 --> P5
+  P5 --> P6
+  A --> P6
+  P6 --> P7
+  C --> P7
+  P7 --> P8
+  A --> P8
+  P8 --> D
+```
 
 ## Installation
 
@@ -54,7 +91,9 @@ A virtual environment is highly recommended. This project uses `pyproject.toml` 
 
 The application is run via the `mpp-parser` command-line tool.
 
-`mpp-parser run -i exmaple/i -o exmaple/o -c exmaple/c test_replay_id --log-level DEBUG --output-format jsonl-gzip --serial`
+### Quick Run
+
+`mpp-parser run -i example/i -o example/o -c example/c test_replay_id --log-level DEBUG --output-format hybrid-mpk-zst`
 
 ### Full Help
 
@@ -69,10 +108,13 @@ mpp-parser --help
 This command processes a replay, computing all available stats by default and saving the output as a gzipped MessagePack file.
 
 ````bash
-mpp-parser run <REPLAY_ID> \
-    --input-dir ./data/input \
+# Example run
+mpp-parser run my-replay-001 \
+    --input-dir ./path/to/your/mpk/files \
     --cache-dir ./data/cache \
-    --output-dir ./data/output
+    --output-dir ./data/output \
+    --output-format hybrid-mpk-zst
+```
 
 ### Run the Full Pipeline
 To run the processor, you need to provide a unique ID for the replay and specify the input, cache, and output directories.
@@ -89,56 +131,91 @@ mpp-parser run my-replay-001 \
 
 - `--force-reprocess`: Ignores any existing cache and re-parses all raw files.
 - `--skip-on-error`: Logs errors for individual bad records but continues processing instead of halting.
-- `--run-demo-aggregation`: Runs the built-in illustrative aggregation logic. Otherwise, a safe "pass-through" behavior is the default.
 - `--dry-run`: Performs configuration validation and file ingestion, then reports what it found without processing any data.
+- `--serial`: Runs in single-threaded mode. This is slower but enables caching and can simplify debugging.
 
-### Computing Specific Stats
+### **Selecting What to Output**
 
-You can choose exactly which summary statistics to generate using the `--compute-stat` or `-s` flag.
 
+You have granular control over which aggregated statistics and which raw data streams are included in the final output.
+
+#### Computing Specific Stats
+
+Use the `--stat` or `-s` flag to select one or more summary statistics. If you don't use this flag, a default set of stats will be computed.
 ```bash
-# Compute only the damage breakdown
+# Compute only the damage breakdown stat
 mpp-parser run <REPLAY_ID> ... -s damage_by_unit_def
 
 # Compute both damage and resource stats
 mpp-parser run <REPLAY_ID> ... -s damage_by_unit_def -s resources_by_team
 ```
 
-### Changing Output Format
+#### Including Unaggregated Data Streams
+
+Use the `--stream` or `-u` flag to select one or more raw data streams. By default, only the `command_log` is included.
+```bash
+# Output the default command_log AND the unit_positions stream
+mpp-parser run <REPLAY_ID> ... -u unit_positions
+
+# Output only the damage_log and unit_events streams (this will NOT include command_log)
+mpp-parser run <REPLAY_ID> ... -u damage_log -u unit_events
+```
+
+---
+
+
+### **Choosing an Output Format**
 
 Select an output format suitable for your workflow using the `--output-format` flag.
 
-**Standard Formats:**
+#### High-Performance Binary Formats (Recommended for UI/API)
 
-To get a directory of standard, self-describing Parquet files:
-```bash
-mpp-parser run <REPLAY_ID> ... --output-format parquet-dir
-```
-Other options include `mpk-gzip` and `jsonl-gzip`.
+These formats are optimized for machine consumption and are ideal for powering frontend applications or downstream APIs. They produce a schema file that describes the layout of the binary data.
 
-**High-Performance Binary Formats:**
+1.  **Hybrid Bundle (Default): `hybrid-mpk-zst`**
+    This is the most flexible format. It creates a **single `.mpk.zst` file** containing a master schema and all the binary data blobs. It can contain a mix of columnar and row-major streams, as defined in `output_contracts.py`.
+    ```bash
+    mpp-parser run <REPLAY_ID> ... --output-format hybrid-mpk-zst
+    ```
 
-For specialized frontend consumers, two high-performance binary formats are available. Both generate a `schema.json` file that describes the layout of the binary data.
-
-1.  **Columnar (Analytics-Optimized): `columnar-zst`**
-    This format is ideal for analytical UIs (charting, data exploration). It creates one compressed binary file per table, with all data for a single column stored contiguously.
+2.  **Row-Major (Streaming-Optimized): `row-major-zst`**
+    This format is designed for consumers that process data row-by-row (e.g., replaying events). It creates a directory containing a `schema.json` and one compressed binary file per table. This format requires a matching contract to be defined in `output_contracts.py`.
+    ```bash
+    mpp-parser run <REPLAY_ID> ... --output-format row-major-zst
+    ```
+    
+3.  **Columnar (Analytics-Optimized): `columnar-zst`**
+    This format is ideal for analytical UIs (charting, data exploration). It creates a directory containing a `schema.json` and one compressed binary file per column.
     ```bash
     mpp-parser run <REPLAY_ID> ... --output-format columnar-zst
     ```
 
-2.  **Row-Major (Event-Streaming-Optimized): `row-major-zst`**
-    This format is designed for consumers that process data row-by-row, like a DAG-builder. It creates one compressed binary file per table, with all column values for a single row stored contiguously. This format requires a matching contract to be defined in `output_contracts.py`.
-    ```bash
-    mpp-parser run <REPLAY_ID> ... --output-format row-major-zst
-    ```
+#### Standard Utility Formats
 
-### Listing Available Stats
+These formats are useful for general-purpose data analysis or interoperability with other tools.
+```bash
+# Get a directory of standard, self-describing Parquet files
+mpp-parser run <REPLAY_ID> ... --output-format parquet-dir
 
-To see a list of all recognized aggregations you can compute:
+# Get a directory of gzipped JSON Lines files
+mpp-parser run <REPLAY_ID> ... --output-format jsonl-gzip
+```
+
+---
+
+### **Listing Available Data**
+
+Use these commands to discover what you can compute and output.
 
 ```bash
+# See a list of all recognized aggregation stats
 mpp-parser list-stats
+
+# See a list of all available unaggregated data streams
+mpp_parser list-streams
 ```
+
+---
 
 ### Serial Mode (for Caching & Debugging)
 

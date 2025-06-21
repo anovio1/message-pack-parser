@@ -1,9 +1,5 @@
 # Developer's Guide to `aggregator.py` (v3.1)
 
-**Audience:** Software Engineers responsible for maintaining, extending, or debugging the aggregator module.
-
-**Prerequisites:** Strong understanding of Python and experience with data manipulation libraries. Familiarity with Polars is highly recommended.
-
 ---
 
 ## 1. Overview & Architectural Role
@@ -155,7 +151,7 @@ def _get_unified_event_log(dataframes: Dict[str, pl.DataFrame]) -> pl.DataFrame:
 
 *   **Testing:** When adding a new stat, **you must add a corresponding unit test** in `tests/unit/test_aggregator.py`. The pattern is to create small, static Polars DataFrames and use `polars.testing.assert_frame_equal` to verify your function's output.
 *   **Registry Validation:** The test suite automatically runs `utils/config_validator.py` to ensure that all registered stats are consistent with the rest of the application's configuration.
-*   **CLI Integration:** The `STATS_REGISTRY` directly powers the application's CLI. The `description` field from your `Stat` object will automatically appear in the help text for the `parser list-stats` command, and the keys are used to validate input to the `--compute-stat` flag.
+*   **CLI Integration:** The `STATS_REGISTRY` directly powers the application's CLI. The `description` field from your `Stat` object will automatically appear in the help text for the `parser list-stats` command, and the keys are used to validate input to the `--stat` flag.
 
 ## 7. Data Dictionary and Change Management
 
