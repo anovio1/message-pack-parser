@@ -27,22 +27,22 @@ To handle potentially very large aspect files with minimal memory overhead, the 
 *   The `value_transformer.py` module consumes this iterator, transforms one record, and yields one clean record.
 *   This "iterator-in, iterator-out" pattern ensures that only a single record is held in memory at any given time during these intensive steps, allowing the application to process files that are much larger than available RAM.
 
-### 1.3. Core Design Pattern: Schema as Single Source of Truth
+### 1.3. Core Design Pattern: Dual Sources of Truth
 
-A key architectural principle is avoiding configuration drift. The definition of the raw data, including all transformation rules, is centralized in one place.
+A key architectural principle is centralizing configuration to prevent drift. The application uses two primary "sources of truth" to define data and its transformations at different stages of the pipeline.
 
-*   **File:** `src/message_pack_parser/schemas/aspects_raw.py`
-*   **Mechanism:** This file defines Pydantic models for the raw data. Transformation rules are embedded directly into these models using the `Field(metadata={...})` attribute.
-    *   **Example (Dequantization):**
-        ```python
-        buildpower: int = Field(metadata={'dequantize_by': 1000.0})
-        ```
-    *   **Example (Enum Mapping):**
-        ```python
-        cmd_type_id: int = Field(metadata={'enum_map': ('cmd_name', CommandsEnum)})
-        ```
-*   **Dynamic Configuration Builder:** The module `src/message_pack_parser/config/dynamic_config_builder.py` runs at application startup. It introspects the `metadata` from all schemas in `aspects_raw.py` and dynamically generates the `DEQUANTIZATION_CONFIG` and `ASPECT_ENUM_MAPPINGS` dictionaries used by the transformer.
-*   **Benefit:** To change a transformation rule, you only need to modify the schema definition in `aspects_raw.py`. The rest of the pipeline adapts automatically.
+1.  **Pre-Processing Source of Truth (`aspects_raw.py`)**
+    *   **File:** `src/message_pack_parser/schemas/aspects_raw.py`
+    *   **Purpose:** Defines the raw data structure from the input `.mpk` files.
+    *   **Mechanism:** This file uses Pydantic models. Pre-processing rules (dequantization, enum mapping) are embedded directly into these models using the `Field(metadata={...})` attribute. This configuration is used by the `value_transformer.py` step to produce clean, analytically-ready data.
+
+2.  **Post-Processing Source of Truth (`output_contracts.py`)**
+    *   **File:** `src/message_pack_parser/schemas/output_contracts.py`
+    *   **Purpose:** Defines how the final, aggregated DataFrames should be transformed for specific downstream consumers.
+    *   **Mechanism:** This file contains a dictionary (`OUTPUT_CONTRACTS`) that maps a stat name to its transformation contract. These rules can include quantization (both static and dynamic), type casting, and specifying a desired binary layout (`columnar` vs `row-major`). This configuration is used by the new `output_transformer.py` step.
+
+*   **Dynamic Configuration Builder (`dynamic_config_builder.py`)**
+    This module runs at application startup and introspects both sources of truth, dynamically generating the configuration dictionaries used by their respective transformer steps. This ensures that to change any transformation rule, a developer only needs to modify the relevant schema or contract file.
 
 ## 2. Detailed Pipeline Data Flow
 
@@ -97,7 +97,16 @@ This section details the exact inputs and outputs for each step of the pipeline.
     5.  Based on user input (or defaults), it calls the appropriate functions from the registry, passing the full dictionary of DataFrames to them.
 *   **Output:** `Tuple[Dict[str, pl.DataFrame], pl.DataFrame]` (a dictionary of all computed aggregated stats, and a single unaggregated DataFrame).
 
-### Step 7: Final Output Generation
+### **Step 7: Output Transformation**
+*   **Module:** `src/core/output_transformer.py`
+*   **Input:** The tuple of DataFrames from Step 6.
+*   **Process:** This step prepares the data for its final output format. It consumes the configuration defined in `schemas/output_contracts.py`.
+    1.  For each DataFrame, it checks for a matching contract in the `OUTPUT_TRANSFORMATION_CONFIG`.
+    2.  It applies any defined transformations, such as `quantize` (statically or dynamically) or `cast`. This modifies the DataFrames in memory (e.g., converting a `Float64` column to a quantized `UInt16`).
+    3.  It bundles the final, transformed DataFrame with a rich metadata object that describes the transformations that were applied.
+*   **Output:** `Tuple[Dict[str, Tuple[pl.DataFrame, Dict]], Tuple[pl.DataFrame, Dict]]` (A dictionary of aggregated stats and a separate unaggregated stream, where each entry is a tuple of the transformed DataFrame and its descriptive metadata).
+
+### Step 8: Final Output Generation
 *   **Module:** `src/core/output_generator.py` and `src/core/output_strategies.py`
 *   **Input:** The `Tuple` from Step 6, an output format choice from the CLI, and paths.
 *   **Process:** The `generate_output` function acts as a delegator. Based on the chosen format, it instantiates the correct strategy class and calls its `write` method. The strategy object handles the final serialization:

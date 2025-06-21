@@ -11,6 +11,8 @@ from enum import Enum
 
 # Import from our package
 from message_pack_parser.context import build_execution_context
+from message_pack_parser.core import output_transformer
+from message_pack_parser.core import output_generator
 from message_pack_parser.logging_config import setup_logging
 from message_pack_parser.core.ingestion import ingest_defs_csv, load_mpk_files, list_recognized_aspects, load_unit_definitions
 from message_pack_parser.core.decoder import stream_decode_aspect
@@ -245,17 +247,31 @@ def run(
 
         logger.info(f"Main processing (Steps 2-5) complete in {time.perf_counter() - stage_start_time:.2f}s.")
 
-        # --- Steps 6 & 7 are always serial ---
+        # --- Steps 6 - 8 are always serial ---
         logger.info("--- [Step 6] Data Aggregation ---")
         stage_start_time = time.perf_counter()
         stats_to_run = compute_stat if compute_stat is not None else []
         aggregated_stats, unaggregated_df = perform_aggregations(dataframes, stats_to_run)
         logger.info(f"Stage complete in {time.perf_counter() - stage_start_time:.2f}s.")
+
+        logger.info("--- [Step 7] Output Transformation ---")
+        stage_start_time = time.perf_counter()
+        stats_to_run = compute_stat if compute_stat is not None else []
+        transformed_agg, transformed_unagg = output_transformer.apply_output_transformations(
+            aggregated_stats, unaggregated_df
+            )
+        logger.info(f"Stage complete in {time.perf_counter() - stage_start_time:.2f}s.")
         
         logger.info("--- [Step 7] Final Output Generation ---")
         stage_start_time = time.perf_counter()
         strategy_instance = STRATEGY_MAP[output_format]()
-        generate_output(strategy_instance, aggregated_stats, unaggregated_df, output_dir, replay_id)
+        generate_output(
+            strategy=strategy_instance,
+            transformed_aggregated_data=transformed_agg,
+            transformed_unaggregated_data=transformed_unagg,
+            output_directory=output_dir,
+            replay_id=replay_id
+        )
         logger.info(f"Stage complete in {time.perf_counter() - stage_start_time:.2f}s.")
 
     except ParserError as e:

@@ -7,6 +7,7 @@ from enum import Enum
 from collections import defaultdict
 
 from message_pack_parser.schemas.aspects_raw import ASPECT_TO_RAW_SCHEMA_MAP
+from message_pack_parser.schemas.output_contracts import OUTPUT_CONTRACTS
 
 def build_transformation_configs() -> Tuple[Dict, Dict]:
     """
@@ -42,3 +43,6 @@ def build_transformation_configs() -> Tuple[Dict, Dict]:
 
 # These configurations are now built from the json_schema_extra attribute.
 DEQUANTIZATION_CONFIG, ASPECT_ENUM_MAPPINGS = build_transformation_configs()
+
+# --- Output Configs
+OUTPUT_TRANSFORMATION_CONFIG: dict = OUTPUT_CONTRACTS

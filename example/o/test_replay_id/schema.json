@@ -1,0 +1,39 @@
+{
+  "replay_id": "test_replay_id",
+  "schema_version": "7.0-row-major-mixed",
+  "generated_at": "2025-06-21T03:51:01.785557+00:00",
+  "streams": {
+    "army_value_timeline": {
+      "num_rows": 2032,
+      "row_byte_stride": 16,
+      "file": "army_value_timeline.rows.bin.zst",
+      "layout": "row-major-mixed",
+      "columns": [
+        {
+          "name": "frame",
+          "dtype": "UInt32",
+          "transform": {
+            "transform": "none",
+            "original_dtype": "Int64"
+          }
+        },
+        {
+          "name": "team_id",
+          "dtype": "Int64",
+          "transform": {
+            "transform": "none"
+          }
+        },
+        {
+          "name": "army_value",
+          "dtype": "UInt32",
+          "transform": {
+            "transform": "static_quantize",
+            "scale": 0.1,
+            "original_dtype": "Float64"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -3,17 +3,16 @@ name = "message_pack_parser"
 version = "3.1.0"
 description = "A parallelized schema-driven mpk parser for BAR replay files."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
   "pydantic>=2.0",
   "polars>=0.19.0",
   "msgpack>=1.0",
   "typer[all]>=0.9.0",
+  "zstandard (>=0.23.0,<0.24.0)",
+  "numpy (>=2.3.0,<3.0.0)",
 ]
 classifiers = [
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Operating System :: OS Independent",
 ]

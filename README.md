@@ -1,6 +1,6 @@
 # Message Pack Processor
 
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Pytest](https://img.shields.io/badge/tested%20with-pytest-009ee5.svg)](https://pytest.org)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
@@ -11,6 +11,8 @@ This tool is designed to be robust, efficient, and extensible, using a modern Py
 ## Core Features
 
 - **Schema-Driven Configuration:** A single source of truth (`aspects_raw.py`) defines both the raw data structure and all transformation rules (dequantization, enum mapping), eliminating configuration drift.
+- **Contract-Driven Output Transformation:** A second source of truth (output_contracts.py) defines how aggregated data should be transformed (e.g., quantized, cast) for specific downstream consumers.
+- **Multiple Output Formats:** Supports various output formats suitable for different downstream consumers (e.g., MessagePack, Parquet, JSON Lines), and Columnar/Row-major binary formats for web front ends
 - **Pluggable Analytics:** New summary statistics can be added as simple drop-in Python files without modifying the core processing engine.
 - **Configurable Aggregation:** Users can select which summary statistics to compute at runtime.
 - **High-Performance Processing:**
@@ -22,7 +24,6 @@ This tool is designed to be robust, efficient, and extensible, using a modern Py
   - **Explicit Data Contracts:** Uses Pydantic schemas to ensure data integrity at every step.
   - **Granular Error Handling:** A custom exception hierarchy allows for specific and meaningful error reporting.
   - **Centralized Logging:** Configurable logging provides clear insight into the pipeline's execution.
-- **Multiple Output Formats:** Supports various output formats suitable for different downstream consumers (e.g., MessagePack, Parquet, JSON Lines).
 - **Ergonomic Command-Line Interface:** A clean, self-documenting CLI built with `Typer` provides auto-generated help, progress bars, and flexible options for development and production use.
 
 ## Installation
@@ -105,16 +106,31 @@ mpp-parser run <REPLAY_ID> ... -s damage_by_unit_def -s resources_by_team
 
 ### Changing Output Format
 
-Select an output format suitable for your workflow. For example, to get a directory of Parquet files:
+Select an output format suitable for your workflow using the `--output-format` flag.
 
+**Standard Formats:**
+
+To get a directory of standard, self-describing Parquet files:
 ```bash
 mpp-parser run <REPLAY_ID> ... --output-format parquet-dir
 ```
+Other options include `mpk-gzip` and `jsonl-gzip`.
 
-When running with multiple stats and `parquet-dir` format, you will get multiple output files, e.g.:
-`./data/output/<REPLAY_ID>/damage_by_unit_def.parquet`
-`./data/output/<REPLAY_ID>/resources_by_team.parquet`
-`./data/output/<REPLAY_ID>/unaggregated.parquet`
+**High-Performance Binary Formats:**
+
+For specialized frontend consumers, two high-performance binary formats are available. Both generate a `schema.json` file that describes the layout of the binary data.
+
+1.  **Columnar (Analytics-Optimized): `columnar-zst`**
+    This format is ideal for analytical UIs (charting, data exploration). It creates one compressed binary file per table, with all data for a single column stored contiguously.
+    ```bash
+    mpp-parser run <REPLAY_ID> ... --output-format columnar-zst
+    ```
+
+2.  **Row-Major (Event-Streaming-Optimized): `row-major-zst`**
+    This format is designed for consumers that process data row-by-row, like a DAG-builder. It creates one compressed binary file per table, with all column values for a single row stored contiguously. This format requires a matching contract to be defined in `output_contracts.py`.
+    ```bash
+    mpp-parser run <REPLAY_ID> ... --output-format row-major-zst
+    ```
 
 ### Listing Available Stats
 
@@ -185,6 +201,7 @@ message_pack_parser/
 │       │   ├── value_transformer.py
 │       │   ├── dataframe_creator.py
 │       │   ├── aggregator.py           # --- STAT ORCHESTRATOR ---
+│       │   ├── output_transformer.py       # --- NEW: Applies output contracts ---
 │       │   ├── output_generator.py
 │       │   ├── output_strategies.py
 │       │   └── stats/                  # --- STATS PLUGIN DIRECTORY ---
@@ -202,8 +219,9 @@ message_pack_parser/
 │       │       ├── resources_by_player.py
 │       ├── schemas/
 │       │   ├── __init__.py
-│       │   ├── aspects_raw.py          # --- SINGLE SOURCE OF TRUTH ---
-│       │   └── aspects.py              # Clean Pydantic models
+│       │   ├── aspects_raw.py              # --- Pre-processing source of truth ---
+│       │   ├── output_contracts.py       # --- NEW: Post-processing source of truth ---
+│       │   └── aspects.py
 │       └── utils/
 │           ├── __init__.py
 │           └── config_validator.py
