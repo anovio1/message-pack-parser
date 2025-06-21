@@ -31,7 +31,7 @@ army_value_timeline_contract = {
             "transform": "cast",
             "to_type": "UInt32", #type for consumer
         },
-        "teamid": {
+        "team_id": {
             "transform": "cast",
             "to_type": "UInt32", #type for consumer
         },

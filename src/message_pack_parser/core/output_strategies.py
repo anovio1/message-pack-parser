@@ -32,6 +32,7 @@ class OutputFormat(str, Enum):
     JSONL_GZIP = "jsonl-gzip"
     COL_ZST = "col-zst"
     ROW_ZST = "row-zst"
+    HYBRID_MPK_ZST = "hybrid-mpk-zst"
 
 
 class OutputStrategy(ABC):
@@ -85,6 +86,120 @@ def _get_struct_format_string(dtypes: list[pl.DataType]) -> str:
         format_chars.append(char)
 
     return "".join(format_chars)
+
+class HybridMessagePackZstStrategy(OutputStrategy):
+    """
+    Creates a single, frontend-friendly .mpk.zst file containing both the
+    schema and all binary data blobs, keyed for easy access. This strategy
+    can produce both columnar and row-major layouts within the same file,
+    as defined by the output contracts.
+    """
+    def _build_payloads(self, all_streams: Dict) -> Tuple[Dict, Dict]:
+        """
+        Processes streams to build the schema for the bundle and a flat
+        dictionary of the binary data blobs.
+        """
+        streams_schema = {}
+        data_blobs = {}
+
+        for stream_name, (df, metadata) in all_streams.items():
+            if df.is_empty():
+                continue
+            
+            table_options = metadata.get("table", {})
+            layout = table_options.get("layout", "columnar")
+            
+            total_stream_bytes = 0
+
+            if layout == "row-major-mixed":
+                try:
+                    format_string = _get_struct_format_string(df.dtypes)
+                    packer = struct.Struct(format_string)
+                except TypeError as e:
+                    logger.warning(f"Skipping row-major for '{stream_name}': {e}")
+                    continue
+                
+                with io.BytesIO() as buffer:
+                    for row in df.iter_rows():
+                        buffer.write(packer.pack(*row))
+                    
+                    stream_blob = buffer.getvalue()
+                    data_blobs[stream_name] = stream_blob
+                    total_stream_bytes = len(stream_blob)
+                
+                streams_schema[stream_name] = {
+                    "layout": "row-major-mixed",
+                    "num_rows": len(df),
+                    "row_byte_stride": packer.size,
+                    "data_key": stream_name,
+                    "stream_byte_size": total_stream_bytes,
+                    "columns": [
+                        {"name": n, "dtype": str(d), "transform": metadata.get("columns", {}).get(n, {})}
+                        for n, d in df.schema.items()
+                    ]
+                }
+            else: # Default to columnar
+                stream_cols_schema = []
+                for series in df:
+                    data_key = f"{stream_name}_{series.name}"
+                    
+                    column_blob = series.to_numpy().tobytes()
+                    data_blobs[data_key] = column_blob
+                    total_stream_bytes += len(column_blob)
+                    
+                    transform_info = metadata.get("columns", {}).get(series.name, {})
+                    stream_cols_schema.append({
+                        "name": series.name,
+                        "dtype": str(series.dtype),
+                        "data_key": data_key,
+                        "original_dtype": transform_info.pop("original_dtype", str(series.dtype)),
+                        "transform": transform_info
+                    })
+                
+                streams_schema[stream_name] = {
+                    "layout": "columnar",
+                    "num_rows": len(df),
+                    "stream_byte_size": total_stream_bytes,
+                    "columns": stream_cols_schema
+                }
+
+        return streams_schema, data_blobs
+
+
+    def write(
+        self,
+        transformed_aggregated_data: Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]],
+        transformed_unaggregated_data: Tuple[pl.DataFrame, Dict[str, Any]],
+        output_directory: str,
+        replay_id: str
+    ) -> None:
+        super().write(transformed_aggregated_data, transformed_unaggregated_data, output_directory, replay_id)
+        
+        all_streams = transformed_aggregated_data.copy()
+        all_streams["unaggregated"] = transformed_unaggregated_data
+
+        streams_schema, data_payloads = self._build_payloads(all_streams)
+
+        master_object = {
+            "schema": {
+                "replay_id": replay_id,
+                "schema_version": "8.0-hybrid-mpk",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "streams": streams_schema,
+            },
+            "data": data_payloads
+        }
+        
+        output_filepath = os.path.join(output_directory, f"{replay_id}.mpk.zst")
+        try:
+            packed_data = msgpack.packb(master_object, use_bin_type=True)
+            assert(isinstance(packed_data, bytes))
+            compressed_data = zstd.ZstdCompressor().compress(packed_data)
+            with open(output_filepath, "wb") as f:
+                f.write(compressed_data)
+            logger.info(f"Successfully wrote hybrid MessagePack bundle to: {output_filepath}")
+        except Exception as e:
+            raise OutputGenerationError(f"Failed to write hybrid MessagePack bundle for {replay_id}") from e
 
 
 class ColumnarBundleZstStrategy(OutputStrategy):
@@ -444,4 +559,5 @@ STRATEGY_MAP: Dict[OutputFormat, Type[OutputStrategy]] = {
     OutputFormat.JSONL_GZIP: JsonLinesGzipStrategy,
     OutputFormat.COL_ZST: ColumnarBundleZstStrategy,
     OutputFormat.ROW_ZST: RowMajorBundleZstStrategy,
+    OutputFormat.HYBRID_MPK_ZST: HybridMessagePackZstStrategy,
 }

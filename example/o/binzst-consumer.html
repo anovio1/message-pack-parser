@@ -3,269 +3,242 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZST Artifact Consumer (Modern ESM)</title>
+    <title>Hybrid MPK+ZST Artifact Consumer</title>
     <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Helvetica, Arial, sans-serif;
-        line-height: 1.6;
-        margin: 0;
-        background-color: #f8f9fa;
-        color: #212529;
-      }
-      .container {
-        max-width: 900px;
-        margin: 2rem auto;
-        padding: 2rem;
-        background-color: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
-      h1,
-      h2 {
-        color: #343a40;
-        border-bottom: 1px solid #dee2e6;
-        padding-bottom: 0.5rem;
-      }
-      .controls {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-      }
-      label {
-        font-weight: bold;
-      }
-      select,
-      button {
-        padding: 0.5rem 1rem;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 1rem;
-        cursor: pointer;
-      }
-      button {
-        background-color: #007bff;
-        color: white;
-        border-color: #007bff;
-        transition: background-color 0.2s;
-      }
-      button:hover {
-        background-color: #0056b3;
-      }
-      #status {
-        font-style: italic;
-        color: #6c757d;
-        margin-bottom: 1rem;
-        white-space: pre-line;
-      }
-      pre {
-        background-color: #e9ecef;
-        padding: 1rem;
-        border-radius: 4px;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        max-height: 500px;
-        overflow-y: auto;
-      }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; background-color: #f8f9fa; color: #212529; }
+      .container { max-width: 900px; margin: 2rem auto; padding: 2rem; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+      h1, h2, h3 { color: #343a40; border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; margin-top: 2rem; }
+      .controls { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+      label { font-weight: bold; }
+      select, button { padding: 0.5rem 1rem; border: 1px solid #ced4da; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+      button { background-color: #007bff; color: white; border-color: #007bff; transition: background-color 0.2s; }
+      button:hover { background-color: #0056b3; }
+      #status { font-style: italic; color: #6c757d; margin-bottom: 1rem; white-space: pre-line; padding: 1em; background-color: #e9ecef; border-radius: 4px; }
+      pre { background-color: #e9ecef; padding: 1rem; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto; }
+      table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+      th, td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
+      th { background-color: #f1f3f5; }
+      .hidden { display: none; }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>High-Performance Artifact Viewer</h1>
-
+      <h1>Hybrid MPK+ZST Artifact Viewer</h1>
       <div class="controls">
         <label for="stream-select">Select Data Stream:</label>
         <select id="stream-select" disabled></select>
-        <button id="load-button" disabled>Load and Parse Data</button>
+        <button id="load-button" disabled>Load and Parse Stream</button>
       </div>
-
-      <div id="status">Loading schema...</div>
-
-      <h2>Parsed Data:</h2>
-      <pre id="output">No data loaded yet.</pre>
+      <div id="status">Loading... Please wait.</div>
+      <div id="stream-info-section" class="hidden">
+        <h3>Selected Stream Schema</h3>
+        <pre id="stream-schema-output"></pre>
+      </div>
+      <h2>Parsed Data</h2>
+      <div id="parsed-data-output"><em>No data loaded yet.</em></div>
+      <h2>Full Artifact Schema</h2>
+      <pre id="full-schema-output">Loading...</pre>
     </div>
-
-    <!-- The script tag now specifies it is a module, enabling modern import/export syntax -->
 
     <script type="module">
       import { Zstd } from "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm@2.23.0/dist/index.js";
+      import { decode } from "https://esm.sh/@msgpack/msgpack@3.1.2/es2022/msgpack.mjs";
 
       document.addEventListener("DOMContentLoaded", async () => {
-        // ---- ASYNC INIT: Zstd ----
         const zstd = await Zstd.load();
-
         const streamSelect = document.getElementById("stream-select");
         const loadButton = document.getElementById("load-button");
         const statusDiv = document.getElementById("status");
-        const outputPre = document.getElementById("output");
+        const fullSchemaOutput = document.getElementById("full-schema-output");
+        const streamInfoSection = document.getElementById("stream-info-section");
+        const streamSchemaOutput = document.getElementById("stream-schema-output");
+        const parsedDataOutput = document.getElementById("parsed-data-output");
 
         const REPLAY_ID = "test_replay_id";
-        const BASE_PATH = `./${REPLAY_ID}/`;
-        let schema = null;
+        const ARTIFACT_PATH = `./${REPLAY_ID}.mpk.zst`;
 
-        // --- Step 1: Load the master schema on page load ---
+        let artifact = null;
+
         try {
-          const response = await fetch(`${BASE_PATH}schema.json`);
-          if (!response.ok)
-            throw new Error(`HTTP error! status: ${response.status}`);
-          schema = await response.json();
+          statusDiv.textContent = `Fetching artifact: ${ARTIFACT_PATH}...`;
+          const response = await fetch(ARTIFACT_PATH);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}. Is your local server running?`);
+          
+          const compressedBuffer = await response.arrayBuffer();
+          statusDiv.textContent = `Decompressing ${compressedBuffer.byteLength} bytes...`;
+          const packedBytes = zstd.decompress(new Uint8Array(compressedBuffer));
+          
+          statusDiv.textContent = `Decompressed. Parsing ${packedBytes.byteLength} MessagePack bytes...`;
+          artifact = decode(packedBytes);
 
+          const schema = artifact.schema;
+          fullSchemaOutput.textContent = JSON.stringify(schema, null, 2);
           const streamNames = Object.keys(schema.streams);
-          if (streamNames.length === 0) {
-            throw new Error(
-              "Schema loaded, but the 'streams' object is empty. Check the Python script output."
-            );
-          }
+          if (streamNames.length === 0) throw new Error("Artifact parsed, but the 'streams' object is empty.");
 
-          streamNames.forEach((name) => {
-            const option = document.createElement("option");
-            option.value = name;
-            option.textContent = name;
-            streamSelect.appendChild(option);
-          });
+          streamSelect.innerHTML = "";
+          streamNames.forEach(name => streamSelect.appendChild(new Option(name, name)));
+          
+          updateStreamSchemaDisplay();
+          streamSelect.addEventListener("change", updateStreamSchemaDisplay);
+          loadButton.addEventListener("click", parseSelectedStream);
 
           streamSelect.disabled = false;
           loadButton.disabled = false;
-          statusDiv.textContent =
-            'Schema loaded. Select a stream and click "Load".';
+          statusDiv.textContent = 'Hybrid artifact loaded. Select a stream and click "Load and Parse Stream".';
         } catch (error) {
-          statusDiv.textContent = `Error loading schema: ${error.message}`;
-          console.error("Schema fetch error:", error);
+          statusDiv.textContent = `Error loading artifact: ${error.message}\n\nMake sure you have run the Python script to generate the '${REPLAY_ID}.mpk.zst' file and are serving this page from a local web server (e.g., 'python -m http.server').`;
+          console.error("Artifact load error:", error);
           return;
         }
 
-        function renderTable(parsedData, columns) {
-          if (!parsedData.length) return "<em>No data.</em>";
-          const headers = columns.map((col) => `<th>${col.name}</th>`).join("");
-          const rows = parsedData
-            .map(
-              (row) =>
-                "<tr>" +
-                columns.map((col) => `<td>${row[col.name]}</td>`).join("") +
-                "</tr>"
-            )
-            .join("\n");
-          return `<table>
-                    <thead><tr>${headers}</tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>`;
+        function updateStreamSchemaDisplay() {
+          const selectedStreamName = streamSelect.value;
+          if (artifact && artifact.schema.streams[selectedStreamName]) {
+            streamSchemaOutput.textContent = JSON.stringify(artifact.schema.streams[selectedStreamName], null, 2);
+            streamInfoSection.classList.remove("hidden");
+          } else {
+            streamInfoSection.classList.add("hidden");
+          }
         }
 
-        // --- Step 2: Set up the main data loading logic ---
-        loadButton.addEventListener("click", async () => {
+        function parseSelectedStream() {
           const selectedStreamName = streamSelect.value;
           if (!selectedStreamName) return;
 
-          outputPre.textContent = "";
-          statusDiv.textContent = `Loading stream: ${selectedStreamName}...`;
+          parsedDataOutput.innerHTML = "<em>Parsing...</em>";
+          statusDiv.textContent = `Parsing stream: ${selectedStreamName}...`;
 
           try {
-            const streamInfo = schema.streams[selectedStreamName];
-            if (!streamInfo)
-              throw new Error(
-                `Stream '${selectedStreamName}' not found in schema.`
-              );
+            const streamInfo = artifact.schema.streams[selectedStreamName];
+            if (!streamInfo) throw new Error(`Stream '${selectedStreamName}' not found in schema.`);
 
-            // --- Step 2a: Fetch and decompress the binary file ---
-            statusDiv.textContent += "\nFetching binary file...";
-            const binaryResponse = await fetch(
-              `${BASE_PATH}${streamInfo.file}`
-            );
-            if (!binaryResponse.ok)
-              throw new Error(`HTTP error! status: ${binaryResponse.status}`);
+            let parsedData;
+            if (streamInfo.layout === "row-major-mixed") {
+              const dataBlob = artifact.data[streamInfo.data_key];
+              if (!dataBlob) throw new Error(`Data blob not found for key: ${streamInfo.data_key}`);
+              // msgpack decodes binary data into Uint8Array. We need its underlying ArrayBuffer.
+              const dataBuffer = dataBlob.buffer.slice(dataBlob.byteOffset, dataBlob.byteOffset + dataBlob.byteLength);
+              parsedData = parseRowMajorBuffer(dataBuffer, streamInfo);
+            } else { // Default to columnar
+              parsedData = parseColumnarBuffer(artifact.data, streamInfo);
+            }
 
-            const compressedBuffer = await binaryResponse.arrayBuffer();
-            statusDiv.textContent += `\nDecompressing ${compressedBuffer.byteLength} bytes...`;
-
-            const decompressedBytes = zstd.decompress(
-              new Uint8Array(compressedBuffer)
-            );
-            const arrayBuffer = decompressedBytes.buffer;
-            statusDiv.textContent += `\nDecompressed to ${arrayBuffer.byteLength} bytes. Parsing...`;
-
-            // --- Step 2b: Parse the buffer using the schema contract ---
-            const parsedData = parseRowMajorBuffer(arrayBuffer, streamInfo);
-
-            // outputPre.textContent = JSON.stringify(parsedData, (key, value) =>
-            //     typeof value === 'bigint' ? value.toString() : value, 2);
-
-            outputPre.innerHTML = renderTable(parsedData, streamInfo.columns);
-
+            parsedDataOutput.innerHTML = renderTable(parsedData, streamInfo.columns);
             statusDiv.textContent = `Successfully parsed ${parsedData.length} rows from '${selectedStreamName}'.`;
           } catch (error) {
             statusDiv.textContent = `Error processing stream: ${error.message}`;
             console.error("Processing error:", error);
           }
-        });
-      });
+        }
 
-      // --- Step 3: The Core Parsing Function ---
-      function parseRowMajorBuffer(arrayBuffer, streamInfo) {
-        const dataView = new DataView(arrayBuffer);
-        const results = [];
-        const { num_rows, row_byte_stride, columns } = streamInfo;
+        // --- CORE PARSING LOGIC ---
 
-        for (let i = 0; i < num_rows; i++) {
-          const rowStartOffset = i * row_byte_stride;
-          const rowObject = {};
-          let currentOffsetInRow = 0;
+        function parseRowMajorBuffer(arrayBuffer, streamInfo) {
+          const dataView = new DataView(arrayBuffer);
+          const results = [];
+          const { num_rows, row_byte_stride, columns } = streamInfo;
 
-          // Iterate through the columns IN THE ORDER defined by the schema
-          for (const column of columns) {
-            // Read the raw value from the buffer based on its dtype
-            const [rawValue, bytesRead] = readValueFromView(
-              dataView,
-              rowStartOffset + currentOffsetInRow,
-              column.dtype
-            );
+          for (let i = 0; i < num_rows; i++) {
+            const rowStartOffset = i * row_byte_stride;
+            const rowObject = {};
+            let currentOffsetInRow = 0;
 
-            // Apply any transformations (like de-quantization)
-            let finalValue = rawValue;
-            if (column.transform && column.transform.scale) {
-              // JS BigInts don't mix with Numbers, so handle them separately
-              if (typeof finalValue === "bigint") {
-                finalValue = Number(finalValue) * column.transform.scale;
-              } else {
-                finalValue = finalValue * column.transform.scale;
+            for (const column of columns) {
+              const [rawValue, bytesRead] = readValueFromView(dataView, rowStartOffset + currentOffsetInRow, column.dtype);
+              let finalValue = rawValue;
+              
+              if (column.transform && column.transform.scale) {
+                 finalValue = Number(rawValue) * column.transform.scale;
               }
+              
+              rowObject[column.name] = finalValue;
+              currentOffsetInRow += bytesRead;
             }
-
-            rowObject[column.name] = finalValue;
-            currentOffsetInRow += bytesRead;
+            results.push(rowObject);
           }
-          results.push(rowObject);
+          return results;
         }
-        return results;
-      }
 
-      function readValueFromView(dataView, offset, dtype) {
-        // Little-endian is assumed (true), matching our Python struct format '<'
-        switch (dtype) {
-          case "Int8":
-            return [dataView.getInt8(offset), 1];
-          case "UInt8":
-            return [dataView.getUint8(offset), 1];
-          case "Int16":
-            return [dataView.getInt16(offset, true), 2];
-          case "UInt16":
-            return [dataView.getUint16(offset, true), 2];
-          case "Int32":
-            return [dataView.getInt32(offset, true), 4];
-          case "UInt32":
-            return [dataView.getUint32(offset, true), 4];
-          case "Int64":
-            return [dataView.getBigInt64(offset, true), 8];
-          case "UInt64":
-            return [dataView.getBigInt64(offset, true), 8]; // No Uint64 in JS DataView, use BigInt
-          case "Float32":
-            return [dataView.getFloat32(offset, true), 4];
-          case "Float64":
-            return [dataView.getFloat64(offset, true), 8];
-          default:
-            throw new Error(`Unsupported dtype in schema: ${dtype}`);
+        function parseColumnarBuffer(dataBlobs, streamInfo) {
+          const results = [];
+          const { num_rows, columns } = streamInfo;
+
+          const columnArrays = {};
+          for (const column of columns) {
+            const blob = dataBlobs[column.data_key];
+            if (!blob) throw new Error(`Data blob not found for key: ${column.data_key}`);
+            
+            const typedArrayConstructor = getTypedArrayConstructor(column.dtype);
+            const buffer = blob.buffer.slice(blob.byteOffset, blob.byteOffset + blob.length);
+            columnArrays[column.name] = new typedArrayConstructor(buffer);
+          }
+
+          for (let i = 0; i < num_rows; i++) {
+            const rowObject = {};
+            for (const column of columns) {
+              const rawValue = columnArrays[column.name][i];
+              
+              let finalValue = rawValue;
+              if (column.transform && column.transform.scale) {
+                finalValue = Number(rawValue) * column.transform.scale;
+              }
+              rowObject[column.name] = finalValue;
+            }
+            results.push(rowObject);
+          }
+          return results;
         }
-      }
+
+        // --- HELPER FUNCTIONS ---
+
+        function getTypedArrayConstructor(dtype) {
+          const map = {
+            "Int8": Int8Array, "UInt8": Uint8Array,
+            "Int16": Int16Array, "UInt16": Uint16Array,
+            "Int32": Int32Array, "UInt32": Uint32Array,
+            "Int64": BigInt64Array, "UInt64": BigUint64Array,
+            "Float32": Float32Array, "Float64": Float64Array,
+          };
+          const constructor = map[dtype];
+          if (!constructor) throw new Error(`No TypedArray for dtype: ${dtype}`);
+          return constructor;
+        }
+
+        function readValueFromView(dataView, offset, dtype) {
+          // The 'true' argument specifies little-endian byte order, matching our Python struct.
+          switch (dtype) {
+            case "Int8":    return [dataView.getInt8(offset), 1];
+            case "UInt8":   return [dataView.getUint8(offset), 1];
+            case "Int16":   return [dataView.getInt16(offset, true), 2];
+            case "UInt16":  return [dataView.getUint16(offset, true), 2];
+            case "Int32":   return [dataView.getInt32(offset, true), 4];
+            case "UInt32":  return [dataView.getUint32(offset, true), 4];
+            case "Int64":   return [dataView.getBigInt64(offset, true), 8];
+            case "UInt64":  return [dataView.getBigUint64(offset, true), 8];
+            case "Float32": return [dataView.getFloat32(offset, true), 4];
+            case "Float64": return [dataView.getFloat64(offset, true), 8];
+            default:
+              throw new Error(`Unsupported dtype for DataView: ${dtype}`);
+          }
+        }
+
+        function renderTable(parsedData, columns) {
+          if (!parsedData || parsedData.length === 0) return "<em>No data rows found.</em>";
+          const headers = columns.map(col => `<th>${col.name}</th>`).join("");
+          const rows = parsedData.slice(0, 100).map(row => { // Display first 100 rows
+            const cells = columns.map(col => {
+              const value = row[col.name];
+              if (typeof value === 'bigint') return `<td>${value.toString()}</td>`;
+              if (typeof value === 'number' && !Number.isInteger(value)) return `<td>${value.toFixed(4)}</td>`;
+              return `<td>${value}</td>`;
+            }).join("");
+            return `<tr>${cells}</tr>`;
+          }).join("");
+          let footer = parsedData.length > 100 ? `<tr><td colspan="${columns.length}"><i>... and ${parsedData.length - 100} more rows.</i></td></tr>` : "";
+          return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}${footer}</tbody></table>`;
+        }
+      });
     </script>
   </body>
 </html>

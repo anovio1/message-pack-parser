@@ -1,143 +1,87 @@
 # src/message_pack_parser/core/output_transformer.py
-"""
-Output Transformation
 
-This module takes analytically-ready DataFrames/Polars from the aggregator and
-transforms them, using a config from schemas/output_contracts.py, for specific
-downstream consumers
-"""
 import logging
 from typing import Dict, Tuple, Any
-
 import polars as pl
 
 from .exceptions import TransformationError
-from message_pack_parser.config.dynamic_config_builder import (
-    OUTPUT_TRANSFORMATION_CONFIG,
-)
+from message_pack_parser.config.dynamic_config_builder import OUTPUT_TRANSFORMATION_CONFIG
 
 logger = logging.getLogger(__name__)
 
-
-def _apply_quantization(
-    series: pl.Series, col_contract: Dict
-) -> Tuple[pl.Series, Dict[str, Any]]:
+def _transform_single_df(df: pl.DataFrame, contract: Dict) -> Tuple[pl.DataFrame, Dict[str, Any]]:
     """
-    Applies quantization to a series based on its contract.
-    Supports both dynamic (data-driven) and static (predefined) quantization.
+    Applies transformations by building a list of Polars lazy expressions and
+    executing them in a single pass for maximum performance. Metadata is generated
+    in lock-step with expression creation to ensure correctness.
     """
-    original_dtype = str(series.dtype)
-    to_type_str = col_contract["to_type"]
-    params = col_contract.get("params", {})
+    output_metadata = {"columns": {}, "table": contract.get("table_options", {})}
+    expressions_to_apply = []
 
-    if params.get("type") == "static":
-        # --- Static Quantization Logic ---
-        scale = params.get("scale")
-        if scale is None:
-            raise TransformationError(
-                f"Static quantization contract for column '{series.name}' requires a 'scale' parameter."
-            )
+    for col_name in df.columns:
+        col_contract = contract.get("columns", {}).get(col_name)
 
-        quantized_series = (series / scale).round(0).cast(getattr(pl, to_type_str))
-
-        metadata = {
-            "transform": "static_quantize",
-            "scale": scale,
-            "original_dtype": original_dtype,
-        }
-
-    else:
-        # --- Dynamic Symmetric Quantization Logic ---
-        if not isinstance(series.dtype, (pl.Float32, pl.Float64)):
-            raise TransformationError(
-                f"Dynamic quantization can only be applied to float types, not {original_dtype} for column '{series.name}'."
-            )
-
-        abs_max = series.abs().max()
-        if to_type_str.startswith("U"):
-            target_max = 2 ** int(to_type_str[4:]) - 1
-        else:
-            target_max = 2 ** (int(to_type_str[3:]) - 1) - 1
-
-        if abs_max is None or abs_max == 0:
-            scale = 1.0
-        else:
-            scale = abs_max / target_max
-
-        quantized_series = (series / scale).round(0).cast(getattr(pl, to_type_str))
-
-        metadata = {
-            "transform": "symmetric_quantize",
-            "scale": scale,
-            "original_dtype": original_dtype,
-        }
-
-    return quantized_series, metadata
-
-
-def _transform_single_df(
-    df: pl.DataFrame, contract: Dict
-) -> Tuple[pl.DataFrame, Dict[str, Any]]:
-    """Helper to apply transformations to a single DataFrame based on its contract."""
-    output_df = df.clone()
-    output_metadata = {
-        "columns": {},
-        # Pass table-level options from the contract into the final metadata
-        "table": contract.get("table_options", {}),
-    }
-
-    for col_name, col_contract in contract.get("columns", {}).items():
-        try:
-            transform_type = col_contract.get("transform")
-
-            if transform_type == "quantize":
-                original_series = output_df.get_column(col_name)
-                new_series, transform_meta = _apply_quantization(
-                    original_series, col_contract
-                )
-                output_df = output_df.with_columns(new_series.alias(col_name))
-                output_metadata["columns"][col_name] = transform_meta
-
-            elif transform_type == "cast":
-                to_type_str = col_contract["to_type"]
-                # Create the new series with the original name
-                new_series = output_df.get_column(col_name).cast(
-                    getattr(pl, to_type_str)
-                )
-                # Overwrite the old column with the new casted one
-                output_df = output_df.with_columns(new_series.alias(col_name))
-                # No special transform metadata is needed for a simple cast.
-                output_metadata["columns"][col_name] = {
-                    "transform": "none",
-                    "original_dtype": str(df.get_column(col_name).dtype),
-                }
-
-        except pl.ColumnNotFoundError:
-            logger.warning(
-                f"Contract specified transformation for column '{col_name}', but it was not found. Skipping."
-            )
+        # If there's no contract for this column, pass it through untouched.
+        if not col_contract:
+            expressions_to_apply.append(pl.col(col_name))
             continue
-        except Exception as e:
-            logger.error(
-                f"Failed to apply transformation for column '{col_name}'. Error: {e}",
-                exc_info=True,
-            )
-            raise TransformationError(
-                f"Transformation failed for column '{col_name}'"
-            ) from e
+
+        # If there is a contract, build the transformation expression and metadata.
+        expression = pl.col(col_name)
+        original_dtype = str(df[col_name].dtype)
+        transform_meta = {}
+
+        transform_type = col_contract.get("transform")
+        if transform_type == "quantize":
+            to_type_str = col_contract["to_type"]
+            params = col_contract.get("params", {})
+            
+            # --- Symmetric (Dynamic) Quantization ---
+            # This is our primary, data-dependent logic.
+            # We must perform this one calculation eagerly to get the scale factor.
+            if not isinstance(df[col_name].dtype, (pl.Float32, pl.Float64)):
+                 raise TransformationError(f"Quantization requires a float column, but '{col_name}' is {original_dtype}.")
+            
+            abs_max = df[col_name].abs().max()
+            if to_type_str.startswith("U"):
+                target_max = 2 ** int(to_type_str[4:]) - 1
+            else:
+                target_max = 2 ** (int(to_type_str[3:]) - 1) - 1
+
+            scale = abs_max / target_max if abs_max and abs_max > 0 else 1.0
+            
+            # Build the expression and the metadata together
+            expression = (expression / scale).round(0)
+            transform_meta = {"transform": "symmetric_quantize", "scale": scale}
+        
+        elif transform_type == "cast":
+            transform_meta = {"transform": "cast"}
+
+        # --- Chained Operations ---
+        # The final type cast is always applied after any value transformations.
+        final_dtype_str = col_contract.get("to_type")
+        if not final_dtype_str:
+             raise TransformationError(f"Transformation contract for '{col_name}' is missing required 'to_type' key.")
+        
+        expression = expression.cast(getattr(pl, final_dtype_str))
+        
+        # --- Finalize and store results for this column ---
+        expressions_to_apply.append(expression.alias(col_name))
+        
+        # Store the complete, correct metadata
+        transform_meta["original_dtype"] = original_dtype
+        output_metadata["columns"][col_name] = transform_meta
+
+    # Execute the entire plan in a single, optimized select statement.
+    output_df = df.select(expressions_to_apply)
 
     return output_df, output_metadata
 
 
 def apply_output_transformations(
     aggregated_stats: Dict[str, pl.DataFrame], unaggregated_df: pl.DataFrame
-) -> Tuple[
-    Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]], Tuple[pl.DataFrame, Dict[str, Any]]
-]:
-    """
-    Orchestrates the transformation of all aggregated and unaggregated data streams.
-    This is the entry point for pipeline Step 6.5.
-    """
+) -> Tuple[Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]], Tuple[pl.DataFrame, Dict[str, Any]]]:
+    """Orchestrates the transformation of all data streams."""
     final_agg_results = {}
     for stat_name, df in aggregated_stats.items():
         contract = OUTPUT_TRANSFORMATION_CONFIG.get(stat_name, {})

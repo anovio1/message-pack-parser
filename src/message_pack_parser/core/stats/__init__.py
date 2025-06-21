@@ -1,3 +1,4 @@
+# src\message_pack_parser\core\stats\__init__.py
 """
 This package contains all individual statistic calculation modules.
 

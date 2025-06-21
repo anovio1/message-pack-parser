@@ -262,7 +262,7 @@ def run(
             )
         logger.info(f"Stage complete in {time.perf_counter() - stage_start_time:.2f}s.")
         
-        logger.info("--- [Step 7] Final Output Generation ---")
+        logger.info("--- [Step 8] Final Output Generation ---")
         stage_start_time = time.perf_counter()
         strategy_instance = STRATEGY_MAP[output_format]()
         generate_output(
