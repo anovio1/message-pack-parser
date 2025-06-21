@@ -11,7 +11,7 @@ Every registered statistic is defined by a `Stat` object, which lives in `src/me
 
 -   `func`: The Python function that contains your Polars logic.
 -   `description`: A brief, user-facing string explaining what the stat calculates. This is shown in the CLI help text.
--   `default_enabled`: A boolean flag (`True` or `False`). If `True`, this stat will be computed automatically when the user doesn't specify any `--compute-stat` flags.
+-   `default_enabled`: A boolean flag (`True` or `False`). If `True`, this stat will be computed automatically when the user doesn't specify any `--stat` flags.
 
 ## 3. How to Create a New Statistic (Tutorial)
 

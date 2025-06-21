@@ -110,7 +110,7 @@ mpp-parser run my-replay-001 \
 
 ### Computing Specific Stats
 
-You can choose exactly which summary statistics to generate using the `--compute-stat` or `-s` flag.
+You can choose exactly which summary statistics to generate using the `--stat` or `-s` flag.
 
 ```bash
 # Compute only the damage breakdown

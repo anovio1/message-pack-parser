@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def generate_output(
     strategy: OutputStrategy,
     transformed_aggregated_data: Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]],
-    transformed_unaggregated_data: Tuple[pl.DataFrame, Dict[str, Any]],
+    transformed_unaggregated_data: Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]],
     output_directory: str,
     replay_id: str,
 ) -> None:

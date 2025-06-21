@@ -10,7 +10,7 @@ def test_cli_invalid_stat_fails():
         [
             "run", "replay123", 
             "-i", "./dummy", "-c", "./dummy", "-o", "./dummy", 
-            "--compute-stat", "this_is_an_invalid_stat"
+            "--stat", "this_is_an_invalid_stat"
         ]
     )
     assert result.exit_code != 0

@@ -11,7 +11,7 @@ This release introduces a fully pluggable and extensible aggregation engine, sig
 - **New Statistics:** Implemented a full suite of seven advanced statistics, including `player_economic_efficiency`, `combat_engagement_summary`, and `crisis_response_index`.
 - **Configurable Default Stats:** The `Stat` object now includes a `default_enabled` flag, allowing maintainers to curate which stats are run when no specific stats are requested by the user.
 - **`list-stats` CLI Command:** A new command, `mpp-parser list-stats`, was added to display all available aggregation statistics and their descriptions, populated dynamically from the registry.
--   **CLI Validation:** The `--compute-stat` option now uses a Typer callback to validate input against the registry, providing immediate feedback for typos.
+-   **CLI Validation:** The `--stat` option now uses a Typer callback to validate input against the registry, providing immediate feedback for typos.
 -   **Comprehensive Documentation:**
     -   Added this `CHANGELOG.md`.
     -   Created a new `docs/aggregator_guide.md` explaining how to build new stat modules.
@@ -21,7 +21,7 @@ This release introduces a fully pluggable and extensible aggregation engine, sig
 -   **[BREAKING CHANGE] Architectural Refactor:** The monolithic `aggregator.py` has been refactored. The core orchestration logic remains, but all individual statistic calculation functions have been moved to their own modules within `src/core/stats/`.
 -   **[BREAKING CHANGE]** The `perform_aggregations` function in `src/core/aggregator.py` now returns a dictionary of all computed statistics (`Dict[str, pl.DataFrame]`) instead of a single DataFrame.
 -   **[BREAKING CHANGE]** All `OutputStrategy` classes now expect a dictionary of stats (`Dict[str, pl.DataFrame]`) and will write multiple output files/streams for formats like Parquet and JSON Lines.
--   **Default Behavior:** If no `--compute-stat` flags are provided, the parser now computes all stats marked as `default_enabled=True`.
+-   **Default Behavior:** If no `--statstat` flags are provided, the parser now computes all stats marked as `default_enabled=True`.
 -   **Pydantic Best Practice:** Updated schemas in `aspects_raw.py` to use `Field(metadata={...})` instead of the older `json_schema_extra` attribute for defining transformation rules.
 
 ---
