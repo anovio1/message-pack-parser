@@ -1,12 +1,11 @@
+##### **`docs/data_dictionary.md`**
 ---
-
-### **`docs/data_dictionary.md`**
 
 # Message Pack Parser: Data Dictionary
 
-**Document Version:** 1.0
-**Schema Version:** 3.1
-**Last Updated:** 2025-06-11
+**Document Version:** 1.0  
+**Schema Version:** 3.1  
+**Last Updated:** 2025-06-11  
 **Owner:** Data Engineering Team
 
 ---
