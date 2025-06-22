@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Tuple, Any
 import polars as pl
 
+from message_pack_parser.config.enums import ENUM_REGISTRY
 from .exceptions import TransformationError
 from message_pack_parser.config.dynamic_config_builder import (
     OUTPUT_TRANSFORMATION_CONFIG,
@@ -17,8 +18,7 @@ def _transform_single_df(
 ) -> Tuple[pl.DataFrame, Dict[str, Any]]:
     """
     Applies transformations by building a list of Polars lazy expressions and
-    executing them in a single pass for maximum performance. Metadata is generated
-    in lock-step with expression creation to ensure correctness.
+    executing them in a single pass for maximum performance.
     """
     output_metadata = {"columns": {}, "table": contract.get("table_options", {})}
     expressions_to_apply = []
@@ -29,6 +29,10 @@ def _transform_single_df(
         # If there's no contract for this column, pass it through untouched.
         if not col_contract:
             expressions_to_apply.append(pl.col(col_name))
+            output_metadata["columns"][col_name] = {
+                "transform": "none",
+                "original_dtype": str(df[col_name].dtype),
+            }
             continue
 
         # If there is a contract, build the transformation expression and metadata.
@@ -37,39 +41,45 @@ def _transform_single_df(
         transform_meta = {}
 
         transform_type = col_contract.get("transform")
-        if transform_type == "quantize":
-            to_type_str = col_contract["to_type"]
+
+        if transform_type == "enum_to_int":
             params = col_contract.get("params", {})
+            enum_key = params.get("enum_key")
+            if not enum_key:
+                raise TransformationError(
+                    f"enum_to_int for '{col_name}' requires 'enum_key' in params."
+                )
 
+            enum_class = ENUM_REGISTRY.get(enum_key)
+            if not enum_class:
+                raise TransformationError(
+                    f"Enum key '{enum_key}' not found in ENUM_REGISTRY."
+                )
+
+            # Replace ambiguous map_dict with an explicit when/then chain.
+            # This is the most robust way to do conditional replacement.
+            # Start with a null default case.
+            mapping_expr = pl.when(False).then(None)
+            for member in enum_class:
+                # For each enum member, add a condition.
+                mapping_expr = mapping_expr.when(pl.col(col_name) == member.name).then(
+                    pl.lit(member.value)
+                )
+
+            # The final expression is the full chain.
+            expression = mapping_expr
+
+            transform_meta = {
+                "transform": "enum_to_int",
+                "enum_map": {member.value: member.name for member in enum_class},
+            }
+
+        elif transform_type == "quantize":
+            params = col_contract.get("params", {})
             if params.get("type") == "static":
-                scale = params.get("scale")
-                if scale is None:
-                    raise TransformationError(
-                        f"Static quantization for '{col_name}' requires a 'scale' parameter."
-                    )
-
-                expression = (expression / scale).round(0)
+                scale = params["scale"]
+                expression = (expression.cast(pl.Float64) / scale).round(0)
                 transform_meta = {"transform": "static_quantize", "scale": scale}
-            else:  # dynamic symmetric quantize
-                # --- Symmetric (Dynamic) Quantization ---
-                # This is our primary, data-dependent logic.
-                # We must perform this one calculation eagerly to get the scale factor.
-                if not isinstance(df[col_name].dtype, (pl.Float32, pl.Float64)):
-                    raise TransformationError(
-                        f"Quantization requires a float column, but '{col_name}' is {original_dtype}."
-                    )
-
-                abs_max = df[col_name].abs().max()
-                if to_type_str.startswith("U"):
-                    target_max = 2 ** int(to_type_str[4:]) - 1
-                else:
-                    target_max = 2 ** (int(to_type_str[3:]) - 1) - 1
-
-                scale = abs_max / target_max if abs_max and abs_max > 0 else 1.0
-
-                # Build the expression and the metadata together
-                expression = (expression / scale).round(0)
-                transform_meta = {"transform": "symmetric_quantize", "scale": scale}
 
         elif transform_type == "cast":
             transform_meta = {"transform": "cast"}
@@ -93,7 +103,6 @@ def _transform_single_df(
 
     # Execute the entire plan in a single, optimized select statement.
     output_df = df.select(expressions_to_apply)
-
     return output_df, output_metadata
 
 

@@ -8,7 +8,7 @@ output strategy, passing along the computed data streams.
 """
 import logging
 import polars as pl
-from typing import Dict, Tuple, Any
+from typing import Dict, Optional, Tuple, Any
 
 from message_pack_parser.core.output_strategies import OutputStrategy
 from message_pack_parser.core.exceptions import OutputGenerationError
@@ -20,6 +20,8 @@ def generate_output(
     strategy: OutputStrategy,
     transformed_aggregated_data: Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]],
     transformed_unaggregated_data: Dict[str, Tuple[pl.DataFrame, Dict[str, Any]]],
+    defs_df: pl.DataFrame,
+    game_meta_bytes: Optional[bytes],
     output_directory: str,
     replay_id: str,
 ) -> None:
@@ -41,6 +43,8 @@ def generate_output(
         strategy.write(
             transformed_aggregated_data=transformed_aggregated_data,
             transformed_unaggregated_data=transformed_unaggregated_data,
+            defs_df=defs_df,
+            game_meta_bytes=game_meta_bytes,
             output_directory=output_directory,
             replay_id=replay_id,
         )
