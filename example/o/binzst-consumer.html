@@ -235,7 +235,7 @@
           streamSelect.disabled = false;
           loadButton.disabled = false;
           statusDiv.textContent =
-            'Hybrid artifact loaded. Select a stream and click "Load and Parse Stream".';
+            `Hybrid artifact loaded from ${ARTIFACT_PATH}. Select a stream and click "Load and Parse Stream".`;
         } catch (error) {
           statusDiv.textContent = `Error loading artifact: ${error.message}\n\nMake sure you have run the Python script to generate the '${REPLAY_ID}.mpk.zst' file and are serving this page from a local web server (e.g., 'python -m http.server').`;
           console.error("Artifact load error:", error);

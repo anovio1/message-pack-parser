@@ -14,54 +14,21 @@ This tool is designed to be robust, efficient, and extensible, using a modern Py
 
 ## Core Features
 
-- **Schema-Driven Configuration:** A single source of truth (`aspects_raw.py`) defines both the raw data structure and all transformation rules (dequantization, enum mapping), eliminating configuration drift.
-- **Contract-Driven Output Transformation:** A second source of truth (output_contracts.py) defines how aggregated data should be transformed (e.g., quantized, cast) for specific downstream consumers.
-- **Multiple Output Formats:** Supports various output formats suitable for different downstream consumers (e.g., MessagePack, Parquet, JSON Lines), and Columnar/Row-major binary formats for web front ends
-- **Pluggable Analytics:** New summary statistics can be added as simple drop-in Python files without modifying the core processing engine.
+- **Schema-Driven Ingest:** All ingest/transformation rules (dequant/enum mapping) are defined in Pydantic models (`aspects_raw.py`, `aspects.py`).
+- **Polars-powered**: Analytics and aggregations are performed with Polars, enabling fast analytics across large ingested datasets.
+- **Plugin-friendly:** New summary statistics can be added as [simple Python plugins](docs/aggregator_guide.md#3-how-to-create-a-new-statistic-tutorial).
+- **Output Transformation:** A second source of truth (`output_contracts.py`) defines how aggregated data should be transformed (e.g., quantized, cast) for downstream consumers.
+- **Multiple Output Formats:** Supports various outputs: Columnar/Row-major binary formats and (msgpack, parquet, jsonl) [(see strats)](src/message_pack_parser/core/output_strategies.py)
 
-## Flow
+
+## Basic Flow
 ```mermaid
-graph TD
-  %% Input & Config
-  subgraph Input_and_Config
-    A["CLI Command"]
-    B["Pre-processing Rules"]
-    C["Post-processing Rules"]
-  end
-
-  %% Pipeline
-  subgraph Pipeline
-    P1["1: Ingest"]
-    P2["2: Decode"]
-    P3["3: Cache (optional)"]
-    P4["4: Transform"]
-    P5["5: DataFrames"]
-    P6["6: Aggregate"]
-    P7["7: Output Transform"]
-    P8["8: Finalize Output"]
-  end
-
-  %% Output
-  subgraph Output
-    D["Artifacts (.mpk.zst, .json, .bin.zst)"]
-  end
-
-  %% Flow
-  A --> P1
-  P1 --> P2
-  B --> P2
-  P2 --> P3
-  P3 --> P4
-  B --> P4
-  P4 --> P5
-  P5 --> P6
-  A --> P6
-  P6 --> P7
-  C --> P7
-  P7 --> P8
-  A --> P8
-  P8 --> D
+graph LR
+    A["Emitter Data (.mpk, [.json, .csv])"] --> B["Message Pack Processor"]
+    B --> C["Hybrid Binary Artifact<br>(MPK+binary blobs+zstd)<br>(.mpk.zst)"]
+    C -."output demo".-> D["Viewer (GitHub Pages Demo) Link Below"]
 ```
+**[▶️ Open the Output Demo](https://anovio1.github.io/message-pack-processor/example/o/binzst-consumer.html)**
 
 ## Installation
 
@@ -245,6 +212,52 @@ A basic but critical test is included to ensure all configurations and schemas a
     ```bash
     pytest
     ```
+
+
+## Flow
+```mermaid
+graph TD
+  %% Input & Config
+  subgraph Input_and_Config
+    A["CLI Command"]
+    B["Pre-processing Rules"]
+    C["Post-processing Rules"]
+  end
+
+  %% Pipeline
+  subgraph Pipeline
+    P1["1: Ingest"]
+    P2["2: Decode"]
+    P3["3: Cache (optional)"]
+    P4["4: Transform"]
+    P5["5: DataFrames"]
+    P6["6: Aggregate"]
+    P7["7: Output Transform"]
+    P8["8: Finalize Output"]
+  end
+
+  %% Output
+  subgraph Output
+    D["Artifacts (.mpk.zst, .json, .bin.zst)"]
+  end
+
+  %% Flow
+  A --> P1
+  P1 --> P2
+  B --> P2
+  P2 --> P3
+  P3 --> P4
+  B --> P4
+  P4 --> P5
+  P5 --> P6
+  A --> P6
+  P6 --> P7
+  C --> P7
+  P7 --> P8
+  A --> P8
+  P8 --> D
+```
+
 
 ## Project Structure
 
