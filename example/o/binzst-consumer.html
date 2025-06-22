@@ -102,6 +102,35 @@
         <button id="load-button" disabled>Load and Parse Stream</button>
       </div>
       <div id="status">Loading... Please wait.</div>
+      <h2>Bundle Byte Size Breakdown</h2>
+      <div
+        id="byte-size-bar-container"
+        style="
+          border: 1px solid #ccc;
+          height: 30px;
+          display: flex;
+          cursor: default;
+        "
+      ></div>
+      <div
+        id="byte-size-bar-tooltip"
+        style="
+          position: absolute;
+          background: rgba(0, 0, 0, 0.75);
+          color: white;
+          padding: 5px 8px;
+          border-radius: 4px;
+          font-size: 0.85rem;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.2s;
+          z-index: 1000;
+        "
+      ></div>
+      <div id="detailed-byte-breakdown">
+        <h3>Detailed Unpacked Size Analysis</h3>
+        <pre id="detailed-breakdown-output">Calculating...</pre>
+      </div>
       <div id="static-assets-section" class="hidden">
         <h2>Static Assets</h2>
         <div id="game-meta-container" class="hidden">
@@ -141,6 +170,12 @@
         );
         const parsedDataOutput = document.getElementById("parsed-data-output");
 
+        const detailedBreakdownOutput = document.getElementById(
+          "detailed-breakdown-output"
+        );
+        const barContainer = document.getElementById("byte-size-bar-container");
+        const tooltip = document.getElementById("byte-size-bar-tooltip");
+
         const staticAssetsSection = document.getElementById(
           "static-assets-section"
         );
@@ -172,9 +207,15 @@
           artifact = decode(packedBytes);
 
           const schema = artifact.schema;
-          fullSchemaOutput.textContent = JSON.stringify(schema, null, 2);
+          fullSchemaOutput.textContent = JSON.stringify(
+            schema,
+            jsonBigIntReplacer,
+            2
+          );
 
           displayStaticAssets(artifact);
+
+          renderByteSizeBar(artifact, packedBytes.byteLength);
 
           const streamNames = Object.keys(schema.streams);
           if (streamNames.length === 0)
@@ -206,7 +247,7 @@
           if (artifact && artifact.schema.streams[selectedStreamName]) {
             streamSchemaOutput.textContent = JSON.stringify(
               artifact.schema.streams[selectedStreamName],
-              null,
+              jsonBigIntReplacer,
               2
             );
             streamInfoSection.classList.remove("hidden");
@@ -275,7 +316,11 @@
               try {
                 const meta_string = new TextDecoder().decode(meta_blob);
                 const meta_json = JSON.parse(meta_string);
-                gameMetaOutput.textContent = JSON.stringify(meta_json, null, 2);
+                gameMetaOutput.textContent = JSON.stringify(
+                  meta_json,
+                  jsonBigIntReplacer,
+                  2
+                );
                 gameMetaContainer.classList.remove("hidden");
               } catch (e) {
                 gameMetaOutput.textContent = `Error parsing game_meta: ${e.message}`;
@@ -292,7 +337,7 @@
                 const decoded_defs_map = decode(defs_blob);
                 defsMapOutput.textContent = JSON.stringify(
                   decoded_defs_map,
-                  null,
+                  jsonBigIntReplacer,
                   2
                 );
                 defsMapContainer.classList.remove("hidden");
@@ -335,42 +380,246 @@
           return results;
         }
 
+        function hexDump(buffer, length = 64) {
+          const uint8 = new Uint8Array(buffer, 0, length);
+          let hexStr = "";
+          for (let i = 0; i < uint8.length; i++) {
+            hexStr += uint8[i].toString(16).padStart(2, "0") + " ";
+            if ((i + 1) % 16 === 0) hexStr += "\n";
+          }
+          return hexStr.trim();
+        }
+
         function parseColumnarBuffer(dataBlobs, streamInfo) {
-          const results = [];
           const { num_rows, columns } = streamInfo;
+          const rows = Array.from({ length: num_rows }, () => ({}));
 
-          const columnArrays = {};
-          for (const column of columns) {
-            const blob = dataBlobs[column.data_key];
-            if (!blob)
-              throw new Error(
-                `Data blob not found for key: ${column.data_key}`
-              );
+          const memo = {};
+          const getBlob = (key) => {
+            if (!memo[key]) memo[key] = dataBlobs[key];
+            if (!memo[key]) throw new Error(`Missing blob ${key}`);
+            return memo[key];
+          };
 
-            const typedArrayConstructor = getTypedArrayConstructor(
-              column.dtype
-            );
-            const buffer = blob.buffer.slice(
+          // For fixed-width primitives, read via DataView
+          function decodePrimitiveColumn(col) {
+            const blob = getBlob(col.data_key);
+            const view = new DataView(
+              blob.buffer,
               blob.byteOffset,
-              blob.byteOffset + blob.length
+              blob.byteLength
             );
-            columnArrays[column.name] = new typedArrayConstructor(buffer);
-          }
+            const dtype = col.dtype;
+            const stride = getStride(dtype);
 
-          for (let i = 0; i < num_rows; i++) {
-            const rowObject = {};
-            for (const column of columns) {
-              const rawValue = columnArrays[column.name][i];
-
-              let finalValue = rawValue;
-              if (column.transform && column.transform.scale) {
-                finalValue = Number(rawValue) * column.transform.scale;
-              }
-              rowObject[column.name] = finalValue;
+            if (stride === 0) {
+              // Should not happen with your getStride
+              console.error(
+                `Column '${col.name}' has zero stride for dtype ${dtype}. Skipping population.`
+              );
+              for (let r = 0; r < num_rows; r++) rows[r][col.name] = undefined;
+              return;
             }
-            results.push(rowObject);
+
+            const actualElementsInBlob = Math.floor(view.byteLength / stride);
+
+            if (view.byteLength > 0 && view.byteLength % stride !== 0) {
+              console.warn(
+                `Column '${col.name}' data length ${view.byteLength} is not a multiple of stride ${stride} for dtype ${dtype}. Data for last element might be incomplete or missing.`
+              );
+            }
+
+            // Iterate up to num_rows (from schema) but only read if data exists in blob
+            for (let r = 0; r < num_rows; r++) {
+              if (r < actualElementsInBlob) {
+                const off = r * stride;
+                // Double check read is within actual view bounds, though actualElementsInBlob should ensure this
+                if (off + stride <= view.byteLength) {
+                  rows[r][col.name] = readViewValue(view, off, dtype);
+                } else {
+                  // This case should ideally not be hit if actualElementsInBlob is correct
+                  console.error(
+                    `Internal error or miscalculation: Attempting to read beyond blob bounds for column '${col.name}', row ${r}.`
+                  );
+                  rows[r][col.name] = undefined;
+                }
+              } else {
+                // Schema expects more rows than data exists for in this blob.
+                // console.warn(`Column '${col.name}': Schema expects num_rows=${num_rows}, but blob only contains data for ${actualElementsInBlob} elements. Padding row ${r} with undefined.`);
+                rows[r][col.name] = undefined;
+              }
+            }
           }
-          return results;
+
+          // --- main column loop ---
+          for (const col of columns) {
+            // Fixed-width primitive
+            if (col.data_key && !col.offsets_key) {
+              decodePrimitiveColumn(col);
+              continue;
+            }
+            // Variable-width Utf8 / List<primitive>
+            if (col.offsets_key && col.data_key) {
+              const offs = decodeOffsets(getBlob(col.offsets_key));
+              const payload = getBlob(col.data_key); // This is a Uint8Array view on the full payload data
+              const slices = sliceByOffsets(payload, offs); // Slices are Uint8Array views
+
+              if (col.dtype === "Utf8" || col.dtype === "String") {
+                slices.forEach((bytes, idx) => {
+                  // 'bytes' is a Uint8Array, a slice of payload
+                  rows[idx][col.name] = new TextDecoder().decode(bytes);
+                });
+              } else {
+                // List<int/float/etc>
+                const innerTypeMatch = col.dtype.match(/List\((.*)\)/);
+                if (!innerTypeMatch || !innerTypeMatch[1]) {
+                  console.error(
+                    `Could not parse inner type for List in column '${col.name}', dtype: ${col.dtype}`
+                  );
+                  slices.forEach((_, idx) => (rows[idx][col.name] = []));
+                  continue;
+                }
+                const innerType = innerTypeMatch[1];
+                const stride = getStride(innerType);
+
+                if (stride === 0) {
+                  // Should not happen
+                  console.error(
+                    `List<${innerType}> for column '${col.name}' has zero stride. Assigning empty lists.`
+                  );
+                  slices.forEach((_, idx) => (rows[idx][col.name] = []));
+                  continue;
+                }
+
+                slices.forEach((bytes, idx) => {
+                  // 'bytes' is a Uint8Array representing one list's data
+                  const arr = [];
+                  const view = new DataView( // DataView specific to this list's byte slice
+                    bytes.buffer,
+                    bytes.byteOffset,
+                    bytes.byteLength
+                  );
+
+                  const numElementsInListSlice = Math.floor(
+                    bytes.byteLength / stride
+                  );
+
+                  if (bytes.byteLength > 0 && bytes.byteLength % stride !== 0) {
+                    console.warn(
+                      `List<${innerType}> slice for column '${col.name}', row ${idx} has byteLength ${bytes.byteLength} which is not a multiple of stride ${stride}. Last element(s) may be incomplete/missing.`
+                    );
+                  }
+
+                  for (let i = 0; i < numElementsInListSlice; i++) {
+                    const o = i * stride; // offset within this specific list's 'view'
+                    // Check if read is within bounds of this slice's view
+                    if (o + stride <= view.byteLength) {
+                      arr.push(readViewValue(view, o, innerType));
+                    } else {
+                      // Should not be hit if numElementsInListSlice is correct
+                      console.error(
+                        `Internal error in List<${innerType}> parsing for column '${col.name}', row ${idx}. Attempting to read beyond slice bounds.`
+                      );
+                      break;
+                    }
+                  }
+                  rows[idx][col.name] = arr;
+                });
+              }
+              continue;
+            }
+            // List<Struct> (recursive)
+            if (col.list_offsets_key && col.struct_fields) {
+              const listOffsBlob = getBlob(col.list_offsets_key);
+              if (!listOffsBlob || listOffsBlob.byteLength === 0) {
+                console.warn(
+                  `List<Struct> column '${col.name}' has empty or missing offsets blob. Assigning empty lists.`
+                );
+                for (let r = 0; r < num_rows; r++) rows[r][col.name] = [];
+                continue;
+              }
+              const listOffs = decodeOffsets(listOffsBlob);
+
+              if (
+                listOffs.length === 0 ||
+                listOffs[listOffs.length - 1] === 0
+              ) {
+                // All lists are empty
+                for (let r = 0; r < num_rows; r++) rows[r][col.name] = [];
+                continue;
+              }
+
+              // Parse every sub-field first (they behave just like top-level cols!)
+              const subFrames = parseColumnarBuffer(dataBlobs, {
+                num_rows: listOffs[listOffs.length - 1], // Total number of struct instances across all lists
+                columns: col.struct_fields,
+              });
+              // Now gather per parent-row
+              for (let r = 0; r < num_rows; r++) {
+                // Iterate through parent rows
+                rows[r][col.name] = []; // Initialize as an empty list
+                if (r < listOffs.length - 1) {
+                  // Ensure `r` is a valid index for listOffs
+                  const startIdx = listOffs[r];
+                  const endIdx = listOffs[r + 1];
+                  for (let k = startIdx; k < endIdx; k++) {
+                    if (k < subFrames.length) {
+                      // Ensure subFrame index is valid
+                      rows[r][col.name].push(subFrames[k]);
+                    } else {
+                      console.warn(
+                        `List<Struct> column '${col.name}', parent row ${r}: struct index ${k} out of bounds for subFrames (length ${subFrames.length}).`
+                      );
+                    }
+                  }
+                } else if (r === listOffs.length - 1) {
+                  // This implies num_rows is one greater than implied by listOffs.
+                  // Or listOffs is empty, but this is handled above.
+                  // This row has no corresponding offset entry, so it's an empty list.
+                } else {
+                  console.warn(
+                    `List<Struct> column '${
+                      col.name
+                    }': parent row ${r} is beyond listOffs length (${
+                      listOffs.length - 1
+                    }). Assigning empty list.`
+                  );
+                }
+              }
+              continue;
+            }
+            // MsgPack fallback
+            if (col.serialization_method === "msgpack_polars_list") {
+              const blob = getBlob(col.data_key);
+              if (!blob) {
+                console.error(
+                  `MsgPack fallback column '${col.name}' missing data_key '${col.data_key}'.`
+                );
+                for (let r = 0; r < num_rows; r++)
+                  rows[r][col.name] = undefined;
+                continue;
+              }
+              const decoded = decode(blob);
+              if (!Array.isArray(decoded)) {
+                console.error(
+                  `MsgPack fallback column '${col.name}' did not decode to an array.`
+                );
+                for (let r = 0; r < num_rows; r++)
+                  rows[r][col.name] = undefined;
+                continue;
+              }
+              for (let r = 0; r < num_rows; r++) {
+                rows[r][col.name] = r < decoded.length ? decoded[r] : undefined;
+              }
+              continue;
+            }
+            console.warn(
+              `Column '${col.name}' uses unsupported layout or missing keys:`,
+              JSON.stringify(col)
+            );
+            for (let r = 0; r < num_rows; r++) rows[r][col.name] = undefined; // Fill with undefined for unsupported
+          }
+          return rows;
         }
 
         // --- HELPER FUNCTIONS ---
@@ -387,6 +636,7 @@
             UInt64: BigUint64Array,
             Float32: Float32Array,
             Float64: Float64Array,
+            Boolean: Uint8Array,
           };
           const constructor = map[dtype];
           if (!constructor)
@@ -421,37 +671,376 @@
               throw new Error(`Unsupported dtype for DataView: ${dtype}`);
           }
         }
+        function jsonBigIntReplacer(key, value) {
+          return typeof value === "bigint" ? value.toString() : value;
+        }
 
         function renderTable(parsedData, columns) {
           if (!parsedData || parsedData.length === 0)
             return "<em>No data rows found.</em>";
+
           const headers = columns.map((col) => `<th>${col.name}</th>`).join("");
+
+          /** prettify any cell value */
+          const pretty = (val) => {
+            if (val === null || val === undefined) return "";
+            if (typeof val === "bigint") return val.toString(); // Handles top-level BigInts
+
+            if (Array.isArray(val) || typeof val === "object") {
+              // Use the replacer when stringifying objects/arrays that might contain BigInts
+              return `<pre style="margin:0">${JSON.stringify(
+                val,
+                jsonBigIntReplacer,
+                2
+              )}</pre>`;
+            }
+            if (typeof val === "number" && !Number.isInteger(val))
+              return val.toFixed(4);
+            return val;
+          };
+
           const rows = parsedData
-            .slice(0, 100)
+            .slice(0, 100) // first 100 rows
             .map((row) => {
-              // Display first 100 rows
               const cells = columns
-                .map((col) => {
-                  const value = row[col.name];
-                  if (typeof value === "bigint")
-                    return `<td>${value.toString()}</td>`;
-                  if (typeof value === "number" && !Number.isInteger(value))
-                    return `<td>${value.toFixed(4)}</td>`;
-                  return `<td>${value}</td>`;
-                })
+                .map((col) => `<td>${pretty(row[col.name])}</td>`)
                 .join("");
               return `<tr>${cells}</tr>`;
             })
             .join("");
-          let footer =
+
+          const footer =
             parsedData.length > 100
-              ? `<tr><td colspan="${columns.length}"><i>... and ${
+              ? `<tr><td colspan="${columns.length}"><i>… and ${
                   parsedData.length - 100
                 } more rows.</i></td></tr>`
               : "";
+
           return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}${footer}</tbody></table>`;
         }
+
+        function renderByteSizeBar(artifactData, totalUnpackedMsgPackSize) {
+          // Pass the whole artifact.data for static assets
+          const schema = artifactData.schema;
+          const data = artifactData.data; // Get the raw data blobs
+
+          barContainer.innerHTML = "";
+          let totalReportedStreamSize = 0;
+          const streamEntries = [];
+
+          for (const [streamName, streamInfo] of Object.entries(
+            schema.streams
+          )) {
+            const streamSize = streamInfo.byte_size ?? 0; // Use 0 if undefined
+            totalReportedStreamSize += streamSize;
+            streamEntries.push({
+              name: streamName,
+              size: streamSize,
+              type: "Stream",
+            });
+          }
+
+          // --- Calculate sizes of other components ---
+          let schemaSizeEstimate = 0;
+          try {
+            schemaSizeEstimate = new TextEncoder().encode(
+              JSON.stringify(schema)
+            ).length;
+          } catch (e) {
+            console.warn("Could not estimate schema size:", e);
+          }
+          streamEntries.push({
+            name: "Schema Definition",
+            size: schemaSizeEstimate,
+            type: "Metadata",
+          });
+
+          let staticAssetsTotalSize = 0;
+          if (schema.static_assets && data) {
+            schema.static_assets.forEach((assetKey) => {
+              if (data[assetKey] && data[assetKey] instanceof Uint8Array) {
+                const assetSize = data[assetKey].byteLength;
+                streamEntries.push({
+                  name: `Static Asset: ${assetKey}`,
+                  size: assetSize,
+                  type: "Static Asset",
+                });
+                staticAssetsTotalSize += assetSize;
+              } else if (data[assetKey]) {
+                // If it's not a Uint8Array, it might have been pre-decoded by msgpack.
+                // Try to stringify for a rough estimate.
+                try {
+                  const estimatedSize = new TextEncoder().encode(
+                    JSON.stringify(data[assetKey])
+                  ).length;
+                  streamEntries.push({
+                    name: `Static Asset (decoded): ${assetKey}`,
+                    size: estimatedSize,
+                    type: "Static Asset (est.)",
+                  });
+                  staticAssetsTotalSize += estimatedSize;
+                } catch (e) {
+                  streamEntries.push({
+                    name: `Static Asset (unknown size): ${assetKey}`,
+                    size: 0,
+                    type: "Static Asset",
+                  });
+                }
+              }
+            });
+          }
+
+          const explicitlyAccountedSize = streamEntries
+            .filter((e) => e.type !== "Overhead")
+            .reduce((sum, entry) => sum + entry.size, 0);
+
+          if (
+            totalUnpackedMsgPackSize &&
+            totalUnpackedMsgPackSize > explicitlyAccountedSize
+          ) {
+            const unaccountedSize =
+              totalUnpackedMsgPackSize - explicitlyAccountedSize;
+            if (unaccountedSize > 1) {
+              // Only add if it's a significant positive contribution
+              streamEntries.push({
+                name: "Unaccounted/MsgPack Container",
+                size: unaccountedSize,
+                type: "Overhead",
+              });
+            }
+          }
+
+          const grandTotalSize = streamEntries.reduce(
+            (sum, entry) => sum + entry.size,
+            0
+          );
+
+          // Nice color palette
+          const baseColorPalette = [
+            "#2196f3", // blue 500
+            "#4caf50", // green 500
+            "#ff9800", // orange 500
+            "#e91e63", // pink 500
+            "#9c27b0", // purple 500
+            "#00bcd4", // cyan 500
+            "#ffc107", // amber 500
+            "#f44336", // red 500
+            "#3f51b5", // indigo 500
+            "#009688", // teal 500
+            "#2196f3", // Blue 500
+            "#4caf50", // Green 500
+            "#ff9800", // Orange 500
+            "#e91e63", // Pink 500
+            "#9c27b0", // Purple 500
+            "#00bcd4", // Cyan 500
+            "#ffc107", // Amber 500
+            "#f44336", // Red 500
+            "#3f51b5", // Indigo 500
+            "#009688", // Teal 500
+            "#8bc34a", // Light Green 500
+            "#cddc39", // Lime 500
+            "#ffeb3b", // Yellow 500
+            "#ff5722", // Deep Orange 500
+            "#795548", // Brown 500
+            "#607d8b", // Blue Grey 500
+          ];
+
+          // Assign colors based on index to ensure variety for larger segments first
+          const assignedColors = {};
+          let colorIdx = 0;
+          streamEntries.forEach((entry) => {
+            if (entry.size > 0) {
+              // Only assign colors to visible segments
+              if (entry.type === "Overhead") {
+                assignedColors[entry.name] = "#9e9e9e"; // Specific grey for overhead
+              } else if (entry.type === "Metadata") {
+                assignedColors[entry.name] = "#673ab7"; // Deep Purple for Schema (distinct)
+              } else {
+                assignedColors[entry.name] =
+                  baseColorPalette[colorIdx % baseColorPalette.length];
+                colorIdx++;
+              }
+            }
+          });
+
+          barContainer.innerHTML = ""; // Clear previous bar
+
+          streamEntries.forEach((entry) => {
+            if (entry.size === 0) return;
+
+            // const widthPercent = (entry.size / grandTotalSize) * 100; // Not strictly needed if using flex-grow
+
+            const segment = document.createElement("div");
+            segment.style.flex = `${entry.size} 0 auto`; // Use actual size for flex basis
+            segment.style.backgroundColor =
+              assignedColors[entry.name] || "#cccccc"; // Fallback color
+            segment.style.minWidth = "3px"; // Ensure very small segments are still visible
+            // segment.style.height = "100%"; // Ensure it fills the container height
+
+            segment.addEventListener("mouseenter", (e) => {
+              const percentOfTotal = (
+                (entry.size / totalUnpackedMsgPackSize) *
+                100
+              ).toFixed(1);
+              tooltip.style.opacity = "1";
+              tooltip.textContent = `${entry.type}: ${
+                entry.name
+              } - ${formatBytes(entry.size)} (${percentOfTotal}%)`;
+            });
+            segment.addEventListener("mousemove", (e) => {
+              tooltip.style.top = `${e.clientY + 10}px`;
+              tooltip.style.left = `${e.clientX + 10}px`;
+            });
+            segment.addEventListener("mouseleave", () => {
+              tooltip.style.opacity = "0";
+            });
+
+            barContainer.appendChild(segment);
+          });
+
+          // --- DETAILED TEXT BREAKDOWN (SORTED) ---
+          // Sort ALL entries (including potentially negative discrepancy) by absolute size for the text list
+          const sortedTextEntries = [...streamEntries ].sort(
+            (a, b) => Math.abs(b.size) - Math.abs(a.size)
+          );
+
+          let breakdownText = `Total Unpacked MessagePack Size (from Zstd): ${formatBytes(
+            totalUnpackedMsgPackSize
+          )}\n`;
+          breakdownText += `Sum of Accounted Parts (before discrepancy): ${formatBytes(
+            explicitlyAccountedSize
+          )}\n`;
+          if (streamEntries .find((e) => e.type === "Overhead/Discrepancy")) {
+            breakdownText += `Calculated Discrepancy/Container: ${formatBytes(
+              discrepancy
+            )}\n`;
+          }
+          breakdownText += `(Sum of positive parts shown in bar: ${formatBytes(
+            grandTotalSize
+          )})\n\n`;
+          breakdownText += "Breakdown (Sorted by size, largest first):\n";
+          breakdownText += "-------------------------------------------\n";
+
+          sortedTextEntries.forEach((entry) => {
+            // Skip zero-size entries unless it's the discrepancy entry and it's non-zero
+            if (entry.size === 0 && entry.type !== "Overhead/Discrepancy")
+              return;
+            if (entry.type === "Overhead/Discrepancy" && entry.size === 0)
+              return;
+
+            const percentOfTotalMsgPack = (
+              (entry.size / totalUnpackedMsgPackSize) *
+              100
+            ).toFixed(1);
+            let displayName = entry.name;
+            if (entry.type === "Stream") displayName = `Stream: ${displayName}`;
+            else if (
+              entry.type === "Static Asset" ||
+              entry.type === "Static Asset (est.)"
+            )
+              displayName = `Asset: ${displayName}`;
+            // Metadata and Overhead/Discrepancy names are already descriptive.
+
+            breakdownText += `- ${displayName}\n`;
+            breakdownText += `  Type: ${entry.type}, Size: ${formatBytes(
+              entry.size
+            )} (${percentOfTotalMsgPack}% of total unpacked)\n`;
+          });
+
+          if (detailedBreakdownOutput) {
+            detailedBreakdownOutput.textContent = breakdownText;
+          } else {
+            console.warn("#detailed-breakdown-output element not found.");
+          }
+        }
+
+        // Utility to make consistent pastel color from string (stream name)
+        function stringToColor(str) {
+          let hash = 0;
+          for (let i = 0; i < str.length; i++)
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+          const h = hash % 360;
+          return `hsl(${h}, 70%, 75%)`;
+        }
+
+        function formatBytes(bytes) {
+          if (bytes < 1024) return `${bytes} B`;
+          if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+          return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+        }
       });
+
+      /** read UInt32 little-endian offsets into a JS array */
+      function decodeOffsets(u8) {
+        const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+        const out = [];
+        for (let i = 0; i < u8.byteLength; i += 4) {
+          out.push(dv.getUint32(i, true));
+        }
+        return out;
+      }
+
+      /** slice a payload Uint8Array using an offsets array */
+      function sliceByOffsets(payload, offsets) {
+        const rows = [];
+        for (let i = 0; i < offsets.length - 1; i++) {
+          const start = offsets[i],
+            end = offsets[i + 1];
+          rows.push(payload.slice(start, end));
+        }
+        return rows;
+      }
+
+      function getStride(dtype) {
+        switch (dtype) {
+          case "Int8":
+          case "UInt8":
+          case "Boolean":
+            return 1;
+          case "Int16":
+          case "UInt16":
+            return 2;
+          case "Int32":
+          case "UInt32":
+          case "Float32":
+            return 4;
+          case "Int64":
+          case "UInt64":
+          case "Float64":
+            return 8;
+          default:
+            throw new Error(`Unknown dtype for stride: ${dtype}`);
+        }
+      }
+
+      function readViewValue(view, offset, dtype) {
+        switch (dtype) {
+          case "Int8":
+            return view.getInt8(offset);
+          case "UInt8":
+            return view.getUint8(offset);
+          case "Boolean":
+            return !!view.getUint8(offset);
+          case "Int16":
+            return view.getInt16(offset, true);
+          case "UInt16":
+            return view.getUint16(offset, true);
+          case "Int32":
+            return view.getInt32(offset, true);
+          case "UInt32":
+            return view.getUint32(offset, true);
+          case "Float32":
+            return view.getFloat32(offset, true);
+          case "Int64":
+            return view.getBigInt64(offset, true);
+          case "UInt64":
+            return view.getBigUint64(offset, true);
+          case "Float64":
+            return view.getFloat64(offset, true);
+          default:
+            throw new Error(`Unknown dtype for DataView: ${dtype}`);
+        }
+      }
     </script>
   </body>
 </html>

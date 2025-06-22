@@ -1,5 +1,6 @@
 # src/message_pack_parser/core/output_transformer.py
 
+import copy
 import logging
 from typing import Dict, Tuple, Any
 import polars as pl
@@ -19,12 +20,18 @@ def _transform_single_df(
     """
     Applies transformations by building a list of Polars lazy expressions and
     executing them in a single pass for maximum performance.
+    The returned metadata preserves **every** column-level option that appeared
+    in the contract (e.g. `null_encoding`) and adds runtime details such as the
+    source dtype.
     """
-    output_metadata = {"columns": {}, "table": contract.get("table_options", {})}
+    output_metadata: Dict[str, Any] = {
+        "columns": {},
+        "table": contract.get("table_options", {}),
+    }
     expressions_to_apply = []
 
     for col_name in df.columns:
-        col_contract = contract.get("columns", {}).get(col_name)
+        col_contract: Dict[str, Any] = contract.get("columns", {}).get(col_name)
 
         # If there's no contract for this column, pass it through untouched.
         if not col_contract:
@@ -35,10 +42,12 @@ def _transform_single_df(
             }
             continue
 
+        # Start with a deep copy of the contract so *all* keys survive
+        transform_meta: Dict[str, Any] = copy.deepcopy(col_contract)
+        original_dtype = str(df[col_name].dtype)
+
         # If there is a contract, build the transformation expression and metadata.
         expression = pl.col(col_name)
-        original_dtype = str(df[col_name].dtype)
-        transform_meta = {}
 
         transform_type = col_contract.get("transform")
 
@@ -69,29 +78,33 @@ def _transform_single_df(
             # The final expression is the full chain.
             expression = mapping_expr
 
-            transform_meta = {
-                "transform": "enum_to_int",
-                "enum_map": {member.value: member.name for member in enum_class},
-            }
+            transform_meta.update(
+                {
+                    "transform": "enum_to_int",
+                    "enum_map": {member.value: member.name for member in enum_class},
+                }
+            )
 
+        # QUANTIZE
         elif transform_type == "quantize":
             params = col_contract.get("params", {})
             if params.get("type") == "static":
                 scale = params["scale"]
                 expression = (expression.cast(pl.Float64) / scale).round(0)
-                transform_meta = {"transform": "static_quantize", "scale": scale}
+                transform_meta.update({"transform": "static_quantize", "scale": scale})
 
+        # SIMPLE CAST
         elif transform_type == "cast":
-            transform_meta = {"transform": "cast"}
+            transform_meta.setdefault("transform", "cast")
 
         # --- Chained Operations ---
         # The final type cast is always applied after any value transformations.
         final_dtype_str = col_contract.get("to_type")
         if not final_dtype_str:
             raise TransformationError(
-                f"Transformation contract for '{col_name}' is missing required 'to_type' key."
+                f"Transformation contract for '{col_name}' is missing required 'to_type'."
             )
-
+            
         expression = expression.cast(getattr(pl, final_dtype_str))
 
         # --- Finalize and store results for this column ---

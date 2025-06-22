@@ -18,6 +18,7 @@ import msgpack
 import gzip
 import logging
 
+from message_pack_parser.core.encoders.columnar_encoder import _fill_nulls_per_contract, _series_to_bytes
 from message_pack_parser.core.exceptions import OutputGenerationError
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,9 @@ def _prepare_df_for_row_major_packing(
     This ensures the DataFrame is safe for struct.pack().
     """
     # If there are no nulls, no preparation is needed.
-    if df.null_count().sum(axis=1)[0] == 0:
+    nc_df = df.null_count()
+    total_nulls = nc_df.to_numpy().sum()
+    if total_nulls == 0:
         return df
 
     # If there are nulls, the contract MUST provide the rule.
@@ -175,6 +178,7 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                                 raise  # Re-raise the exception after printing
 
                         data_blobs[stream_name] = buffer.getvalue()
+                        byte_size = len(data_blobs[stream_name])
 
                     row_major_cols_schema = [
                         self._get_column_schema(n, str(d), stream_name, metadata)
@@ -182,6 +186,7 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                     ]
                     streams_schema[stream_name] = {
                         "layout": "row-major-mixed",
+                        "byte_size": byte_size,
                         "num_rows": len(df_prepared),
                         "row_byte_stride": packer.size,
                         "data_key": stream_name,
@@ -190,17 +195,29 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                 except TypeError as e:
                     logger.warning(f"Skipping row-major for '{stream_name}': {e}")
             else:
+                stream_byte_size = 0
                 stream_cols_schema = []
+
+                table_meta = metadata.get("table", {})
+                
                 for series in df:
-                    data_key = f"{stream_name}_{series.name}"
-                    data_blobs[data_key] = series.to_numpy().tobytes()
-                    stream_cols_schema.append(
-                        self._get_column_schema(
-                            series.name, str(series.dtype), data_key, metadata
-                        )
-                    )
+                    col_meta = metadata.get("columns", {}).get(series.name, {})
+                    series   = _fill_nulls_per_contract(series, col_meta, table_meta,
+                                                        stream_name)
+
+                    blobs, col_schema_entries = _series_to_bytes(series)
+
+                    # add every produced blob to the bundle and byte counter
+                    for k, v in blobs.items():
+                        data_blobs[k] = v
+                        stream_byte_size += len(v)
+
+                    # extend schema with one (numeric) or many (utf8) entries
+                    stream_cols_schema.extend(col_schema_entries)
+
                 streams_schema[stream_name] = {
                     "layout": "columnar",
+                    "byte_size": stream_byte_size,
                     "num_rows": len(df),
                     "columns": stream_cols_schema,
                 }
@@ -376,33 +393,51 @@ class ColumnarBundleZstStrategy(OutputStrategy):
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "streams": {},
         }
+
         for stream_name, (df, metadata) in all_streams.items():
             if (
                 df.is_empty()
                 or metadata.get("table", {}).get("layout") == "row-major-mixed"
             ):
                 continue
+
             stream_cols_schema = []
+
+            table_meta = metadata.get("table", {})
+            
             for series in df:
-                filename = f"{stream_name}_{series.name}.bin.zst"
-                output_path = os.path.join(replay_output_dir, filename)
-                column_bytes = series.to_numpy().tobytes()
-                compressed_payload = zstd.ZstdCompressor().compress(column_bytes)
-                with open(output_path, "wb") as f_out:
-                    f_out.write(compressed_payload)
-                stream_cols_schema.append(
-                    {
-                        "name": series.name,
-                        "dtype": str(series.dtype),
-                        "file": filename,
-                        **metadata.get("columns", {}).get(series.name, {}),
-                    }
-                )
+                col_meta = metadata.get("columns", {}).get(series.name, {})
+                series   = _fill_nulls_per_contract(series, col_meta, table_meta,
+                                                    stream_name)
+
+                blobs, col_schema_entries = _series_to_bytes(series)
+
+                # write every produced blob (1 for numeric, 2 for Utf8)
+                for data_key, raw in blobs.items():
+                    filename = f"{data_key}.bin.zst"  # use key as base
+                    output_path = os.path.join(replay_output_dir, filename)
+
+                    compressed = zstd.ZstdCompressor().compress(raw)
+                    with open(output_path, "wb") as f_out:
+                        f_out.write(compressed)
+
+                    # add "file" field to the corresponding schema entry
+                    for entry in col_schema_entries:
+                        # match by key → add file name once
+                        if (
+                            entry.get("data_key") == data_key
+                            or entry.get("offsets_key") == data_key
+                        ):
+                            entry["file"] = filename
+
+                stream_cols_schema.extend(col_schema_entries)
+
             schema["streams"][stream_name] = {
                 "layout": "columnar",
                 "num_rows": len(df),
                 "columns": stream_cols_schema,
             }
+
         schema_path = os.path.join(replay_output_dir, "schema.json")
         with open(schema_path, "w") as f_schema:
             json.dump(schema, f_schema, indent=2)
