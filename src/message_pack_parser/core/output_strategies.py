@@ -197,6 +197,7 @@ class HybridMessagePackZstStrategy(OutputStrategy):
             else:
                 stream_byte_size = 0
                 stream_cols_schema = []
+                stream_blobs = {}
 
                 table_meta = metadata.get("table", {})
                 
@@ -208,9 +209,9 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                     blobs, col_schema_entries = _series_to_bytes(series)
 
                     # add every produced blob to the bundle and byte counter
-                    for k, v in blobs.items():
-                        data_blobs[k] = v
-                        stream_byte_size += len(v)
+                    for blob_key, blob_value in blobs.items():
+                        stream_blobs[blob_key] = blob_value
+                        stream_byte_size += len(blob_value)
 
                     # extend schema with one (numeric) or many (utf8) entries
                     stream_cols_schema.extend(col_schema_entries)
@@ -221,6 +222,7 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                     "num_rows": len(df),
                     "columns": stream_cols_schema,
                 }
+                data_blobs[stream_name] = stream_blobs
         return streams_schema, data_blobs
 
     def _execute_write(
