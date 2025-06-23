@@ -134,13 +134,72 @@ unit_events_contract = {
 }
 
 
+unit_economic_contribution_binned_contract = {
+    "columns": {
+        "team_id": {
+            "transform": "cast",
+            "to_type": "UInt16",
+            "null_encoding": 0,
+        },
+        "unit_def_id": {
+            "transform": "cast",
+            "to_type": "UInt16",
+            "null_encoding": 0,
+        },
+        "time_bin_start_frame": {
+            "transform": "cast",
+            "to_type": "UInt32",
+            "null_encoding": 0,
+        },
+        "units_alive_in_bin": {
+            "transform": "cast",
+            "to_type": "UInt16",
+            "null_encoding": 0,
+        },
+        "total_unit_seconds_in_bin": {
+            "transform": "cast",
+            "to_type": "Float32",
+            "null_encoding": 0,
+        },
+        "total_units_produced_in_bin": {
+            "transform": "cast",
+            "to_type": "UInt16",
+            "null_encoding": 0,
+        },
+        "total_metal_produced_in_bin": {
+            "transform": "cast",
+            "to_type": "Float32",
+            "null_encoding": 0, 
+        },
+        "total_metal_consumed_in_bin": {
+            "transform": "cast",
+            "to_type": "Float32",
+            "null_encoding": 0,
+        },
+        "total_energy_produced_in_bin": {
+            "transform": "cast",
+            "to_type": "Float32",
+            "null_encoding": 0,
+        },
+        "total_energy_consumed_in_bin": {
+            "transform": "cast",
+            "to_type": "Float32",
+            "null_encoding": 0,
+        },
+    },
+    "table_options": {
+        "layout": "columnar",
+    },
+}
+
+
 damage_log_contract = {
     "columns": {
         "frame": {
             "transform": "cast",
             "to_type": "Int32",  # frame can be large, but use Int32 signed or UInt32 as needed
         },
-        "victim_team_id": {
+        "unit_id": {
             "transform": "cast",
             "to_type": "Int16",
         },
@@ -202,9 +261,9 @@ damage_log_contract = {
     },
 }
 
-
 OUTPUT_CONTRACTS: Dict[str, Dict[str, Any]] = {
     "army_value_timeline": army_value_timeline_contract,
+    "unit_economic_contribution_binned": unit_economic_contribution_binned_contract,
     "unit_positions": unit_positions_contract,
     "unit_events": unit_events_contract,
     "team_stats": team_stats_contract,

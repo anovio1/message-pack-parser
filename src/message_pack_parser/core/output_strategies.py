@@ -18,7 +18,10 @@ import msgpack
 import gzip
 import logging
 
-from message_pack_parser.core.encoders.columnar_encoder import _fill_nulls_per_contract, _series_to_bytes
+from message_pack_parser.core.encoders.columnar_encoder import (
+    _fill_nulls_per_contract,
+    _series_to_bytes,
+)
 from message_pack_parser.core.exceptions import OutputGenerationError
 
 logger = logging.getLogger(__name__)
@@ -202,11 +205,12 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                 stream_blobs = {}
 
                 table_meta = metadata.get("table", {})
-                
+
                 for series in df:
                     col_meta = metadata.get("columns", {}).get(series.name, {})
-                    series   = _fill_nulls_per_contract(series, col_meta, table_meta,
-                                                        stream_name)
+                    series = _fill_nulls_per_contract(
+                        series, col_meta, table_meta, stream_name
+                    )
 
                     blobs, col_schema_entries = _series_to_bytes(series)
 
@@ -408,11 +412,12 @@ class ColumnarBundleZstStrategy(OutputStrategy):
             stream_cols_schema = []
 
             table_meta = metadata.get("table", {})
-            
+
             for series in df:
                 col_meta = metadata.get("columns", {}).get(series.name, {})
-                series   = _fill_nulls_per_contract(series, col_meta, table_meta,
-                                                    stream_name)
+                series = _fill_nulls_per_contract(
+                    series, col_meta, table_meta, stream_name
+                )
 
                 blobs, col_schema_entries = _series_to_bytes(series)
 

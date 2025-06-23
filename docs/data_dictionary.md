@@ -502,6 +502,29 @@ This section documents the schemas of the final DataFrames produced by the stati
 | `total_metal_used`      | `pl.Float64`     | The sum total of all metal consumed by the player throughout the game.  | Dequantized float.     |
 | `total_energy_produced` | `pl.Float64`     | The sum total of all energy produced by the player throughout the game. | Dequantized float.     |
 | `total_energy_used`     | `pl.Float64`     | The sum total of all energy consumed by the player throughout the game. | Dequantized float.     |
+---
+
+### `unit_economic_contribution_binned`
+
+> **Source File:** [`unit_economic_contribution_binned.py`](../src/message_pack_parser/core/stats/unit_economic_contribution_binned.py)
+>
+> **Cardinality:** One row per (`team_id`, `unit_def_id`, `time_bin_start_frame`) combination where economic activity or unit production occurred.
+>
+> A dynamic, time-series analysis of economic performance. This stat breaks down the game into discrete time intervals (bins, default 10 seconds) and calculates the total resources produced and consumed by each unit type for each player within those bins. It provides a granular view of how a player's economy evolves, highlighting production ramps, resource drains, and the shifting roles of units throughout the match.
+
+| Column Name | Polars Data Type | Description |
+| :--- | :--- | :--- |
+| `team_id` | `pl.Int64` | The unique ID of the player. |
+| `unit_def_id` | `pl.Int64` | The definition ID of the unit type. |
+| `time_bin_start_frame` | `pl.Int64` | The starting frame of the time bin (e.g., 0, 300, 600...). |
+| `units_alive_in_bin` | `pl.Int64` | The number of distinct units of this type that were active at any point during this bin. |
+| `total_unit_seconds_in_bin` | `pl.Float64` | The total "unit-seconds" of lifetime for this unit type within this bin. This is the sum of the actual time (in seconds) that each unit of this type was active during the bin. |
+| `total_units_produced_in_bin` | `pl.Int64` | The number of new units of this type whose creation event occurred within this bin. |
+| `total_metal_produced_in_bin` | `pl.Float64` | The total amount of metal produced by all units of this type during this bin. |
+| `total_metal_consumed_in_bin` | `pl.Float64` | The total amount of metal consumed by all units of this type during this bin. |
+| `total_energy_produced_in_bin` | `pl.Float64` | The total amount of energy produced by all units of this type during this bin. (Column is only present if source data is available). |
+| `total_energy_consumed_in_bin` | `pl.Float64` | The total amount of energy consumed by all units of this type during this bin. (Column is only present if source data is available). |
+| `time_bin_end_frame` | `pl.Int64` | **(Optional)** The exclusive end frame of the time bin (e.g., 300, 600, 900...). Included for debugging if `INCLUDE_DEBUG_COLS` is set to `True`. |
 
 ## 8. Usage Examples
 
