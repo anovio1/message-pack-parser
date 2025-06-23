@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hybrid MPK+ZST Artifact Consumer</title>
+    <script>
+      (function () {
+        const saved = localStorage.getItem("theme");
+        const prefersDark = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+        const theme = saved || (prefersDark ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
     <style>
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -56,6 +66,9 @@
       button:hover {
         background-color: #0056b3;
       }
+      button[disabled] {
+        opacity: 0.5;
+      }
       #status {
         font-style: italic;
         color: #6c757d;
@@ -91,15 +104,88 @@
       .hidden {
         display: none;
       }
+      #log-bins-button {
+        font-size: 0.75em;
+        padding: 0.25em;
+        background: gray;
+      }
+    </style>
+
+    <style>
+      /* 1) Define all your colors as CSS variables */
+      :root {
+        --bg: #f8f9fa;
+        --text: #212529;
+        --container-bg: #ffffff;
+        --header: #343a40;
+        --border: #dee2e6;
+        --control-bg: #e9ecef;
+        --button-bg: #007bff;
+        --button-text: white;
+        --button-hover: #0056b3;
+      }
+      /* 2) Override your existing rules to use those vars */
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+      }
+      .container {
+        background-color: var(--container-bg);
+      }
+      h1,
+      h2,
+      h3 {
+        color: var(--header);
+        border-bottom-color: var(--border);
+      }
+      #status,
+      pre,
+      th {
+        background-color: var(--control-bg);
+      }
+      select,
+      button {
+        background-color: var(--container-bg);
+        border-color: var(--border);
+        color: var(--text);
+      }
+      button {
+        background-color: var(--button-bg);
+        color: var(--button-text);
+      }
+      button:hover {
+        background-color: var(--button-hover);
+      }
+      /* 3) Define your dark palette under a [data-theme="dark"] selector */
+      [data-theme="dark"] {
+        --bg: #121212;
+        --text: #e0e0e0;
+        --container-bg: #1e1e1e;
+        --header: #fafafa;
+        --border: #333;
+        --control-bg: #2a2a2a;
+        --button-bg: #3880ff;
+        --button-text: white;
+        --button-hover: #1c54b2;
+      }
     </style>
   </head>
   <body>
+    <div>
+      <button
+        id="theme-toggle"
+        style="position: fixed; top: 1rem; right: 1rem; z-index: 1000"
+      >
+        Toggle Dark Mode
+      </button>
+    </div>
     <div class="container">
       <h1>Hybrid MPK+ZST Artifact Viewer</h1>
       <div class="controls">
         <label for="stream-select">Select Data Stream:</label>
         <select id="stream-select" disabled></select>
         <button id="load-button" disabled>Load and Parse Stream</button>
+        <button id="log-bins-button" disabled>Log Actual Bin Sizes</button>
       </div>
       <div id="status">Loading... Please wait.</div>
       <h2>Bundle Byte Size Breakdown</h2>
@@ -147,6 +233,7 @@
         <pre id="stream-schema-output"></pre>
       </div>
       <h2>Parsed Data</h2>
+      <button id="show-unit-names-button" disabled>Show Unit Names</button>
       <div id="parsed-data-output"><em>No data loaded yet.</em></div>
       <h2>Full Artifact Schema</h2>
       <pre id="full-schema-output">Loading...</pre>
@@ -190,6 +277,9 @@
         const ARTIFACT_PATH = `./${REPLAY_ID}.mpk.zst`;
 
         let artifact = null;
+        let decodedDefsMap = null;
+        let lastParsedData = null;
+        let lastColumns = null;
 
         try {
           statusDiv.textContent = `Fetching artifact: ${ARTIFACT_PATH}...`;
@@ -205,6 +295,17 @@
 
           statusDiv.textContent = `Decompressed. Parsing ${packedBytes.byteLength} MessagePack bytes...`;
           artifact = decode(packedBytes);
+          initLogBinsButton(artifact);
+
+          //   for (const [key, blob] of Object.entries(artifact.data)) {
+          //     if (blob instanceof Uint8Array) {
+          //       console.log(`Blob '${key}': ${blob.byteLength} bytes`);
+          //     } else {
+          //       console.warn(
+          //         `Blob '${key}' is not Uint8Array, type: ${typeof blob}`
+          //       );
+          //     }
+          //   }
 
           const schema = artifact.schema;
           fullSchemaOutput.textContent = JSON.stringify(
@@ -234,8 +335,7 @@
 
           streamSelect.disabled = false;
           loadButton.disabled = false;
-          statusDiv.textContent =
-            `Hybrid artifact loaded from ${ARTIFACT_PATH}. Select a stream and click "Load and Parse Stream".`;
+          statusDiv.textContent = `Hybrid artifact loaded from ${ARTIFACT_PATH}. Select a stream and click "Load and Parse Stream".`;
         } catch (error) {
           statusDiv.textContent = `Error loading artifact: ${error.message}\n\nMake sure you have run the Python script to generate the '${REPLAY_ID}.mpk.zst' file and are serving this page from a local web server (e.g., 'python -m http.server').`;
           console.error("Artifact load error:", error);
@@ -285,13 +385,38 @@
               parsedData = parseRowMajorBuffer(dataBuffer, streamInfo);
             } else {
               // Default to columnar
-              parsedData = parseColumnarBuffer(artifact.data, streamInfo);
+              //   parsedData = parseColumnarBuffer(artifact.data, streamInfo);
+              console.log(artifact.data[selectedStreamName]);
+              console.log(artifact.data, selectedStreamName);
+              console.log(streamInfo);
+              parsedData = parseColumnarBuffer(
+                artifact.data[selectedStreamName],
+                streamInfo
+              );
+              debugCheckForIncompleteColumns(parsedData, streamInfo.columns);
             }
 
             parsedDataOutput.innerHTML = renderTable(
               parsedData,
               streamInfo.columns
             );
+
+            lastParsedData = parsedData;
+            lastColumns = streamInfo.columns;
+            // Enable the button if applicable
+            const showUnitBtn = document.getElementById(
+              "show-unit-names-button"
+            );
+            if (
+              lastParsedData &&
+              lastColumns &&
+              lastColumns.some((c) => c.name === "unit_def_id") &&
+              decodedDefsMap
+            ) {
+              showUnitBtn.disabled = false;
+            } else {
+              showUnitBtn.disabled = true;
+            }
             statusDiv.textContent = `Successfully parsed ${parsedData.length} rows from '${selectedStreamName}'.`;
           } catch (error) {
             statusDiv.textContent = `Error processing stream: ${error.message}`;
@@ -334,9 +459,9 @@
             if (defs_blob) {
               try {
                 // The defs_map is a nested MessagePack object
-                const decoded_defs_map = decode(defs_blob);
+                decodedDefsMap = decode(defs_blob);
                 defsMapOutput.textContent = JSON.stringify(
-                  decoded_defs_map,
+                  decodedDefsMap,
                   jsonBigIntReplacer,
                   2
                 );
@@ -422,6 +547,9 @@
             }
 
             const actualElementsInBlob = Math.floor(view.byteLength / stride);
+            console.warn(
+              `Column '${col.name}' blob only contains ${actualElementsInBlob} rows (blob size: ${view.byteLength} bytes, stride: ${stride}), but schema num_rows = ${num_rows}.`
+            );
 
             if (view.byteLength > 0 && view.byteLength % stride !== 0) {
               console.warn(
@@ -624,6 +752,47 @@
 
         // --- HELPER FUNCTIONS ---
 
+        document
+          .getElementById("show-unit-names-button")
+          .addEventListener("click", () => {
+            if (!lastParsedData || !decodedDefsMap) return;
+
+            // Clone data to avoid mutating original
+            const enriched = lastParsedData.map((row) => {
+              let defId = row["unit_def_id"];
+              if (defId === undefined && row["unit_def_id_bin"] !== undefined) {
+                defId = row["unit_def_id_bin"];
+              }
+              const info = decodedDefsMap[defId?.toString?.()] || [];
+              return {
+                ...row,
+                unit_def_name: info[0] || "",
+                unit_pretty_name: info[1] || "",
+              };
+            });
+
+            // Add columns for display (next to unit_def_id)
+            let cols = lastColumns.slice();
+            let idx = cols.findIndex((c) => c.name === "unit_def_id");
+            if (idx === -1)
+              idx = cols.findIndex((c) => c.name === "unit_def_id_bin");
+            if (idx !== -1) {
+              // Insert after unit_def_id
+              cols = [
+                ...cols.slice(0, idx + 1),
+                { name: "unit_def_name" },
+                { name: "unit_pretty_name" },
+                ...cols.slice(idx + 1),
+              ];
+            } else {
+              cols.push(
+                { name: "unit_def_name" },
+                { name: "unit_pretty_name" }
+              );
+            }
+
+            parsedDataOutput.innerHTML = renderTable(enriched, cols);
+          });
         function getTypedArrayConstructor(dtype) {
           const map = {
             Int8: Int8Array,
@@ -700,7 +869,7 @@
           };
 
           const rows = parsedData
-            .slice(0, 100) // first 100 rows
+            .slice(0, 1000) // first 100 rows
             .map((row) => {
               const cells = columns
                 .map((col) => `<td>${pretty(row[col.name])}</td>`)
@@ -885,7 +1054,7 @@
               tooltip.style.opacity = "1";
               tooltip.textContent = `${entry.type}: ${
                 entry.name
-              } - ${formatBytes(entry.size)} (${percentOfTotal}%)`;
+              } - ${formatBytes(entry.size)}/${formatBytes(totalUnpackedMsgPackSize)} (${percentOfTotal}%)`;
             });
             segment.addEventListener("mousemove", (e) => {
               tooltip.style.top = `${e.clientY + 10}px`;
@@ -900,7 +1069,7 @@
 
           // --- DETAILED TEXT BREAKDOWN (SORTED) ---
           // Sort ALL entries (including potentially negative discrepancy) by absolute size for the text list
-          const sortedTextEntries = [...streamEntries ].sort(
+          const sortedTextEntries = [...streamEntries].sort(
             (a, b) => Math.abs(b.size) - Math.abs(a.size)
           );
 
@@ -910,7 +1079,7 @@
           breakdownText += `Sum of Accounted Parts (before discrepancy): ${formatBytes(
             explicitlyAccountedSize
           )}\n`;
-          if (streamEntries .find((e) => e.type === "Overhead/Discrepancy")) {
+          if (streamEntries.find((e) => e.type === "Overhead/Discrepancy")) {
             breakdownText += `Calculated Discrepancy/Container: ${formatBytes(
               discrepancy
             )}\n`;
@@ -1041,6 +1210,92 @@
             throw new Error(`Unknown dtype for DataView: ${dtype}`);
         }
       }
+      function debugCheckForIncompleteColumns(rows, columns) {
+        console.group("Column Completeness Debug");
+        columns.forEach((col) => {
+          let undefinedCount = 0;
+          for (let i = 0; i < rows.length; i++) {
+            if (rows[i][col.name] === undefined || rows[i][col.name] === null) {
+              undefinedCount++;
+            }
+          }
+          if (undefinedCount > 0) {
+            console.warn(
+              `Column "${col.name}" has ${undefinedCount} undefined/null values out of ${rows.length} rows`
+            );
+          } else {
+            console.log(`Column "${col.name}" fully populated.`);
+          }
+        });
+        console.groupEnd();
+      }
+
+      function initLogBinsButton(artifact) {
+        const logBinsButton = document.getElementById("log-bins-button");
+        if (!logBinsButton) {
+          console.warn("Log Bins button not found.");
+          return;
+        }
+        logBinsButton.disabled = false;
+        logBinsButton.addEventListener("click", () => {
+          if (!artifact || !artifact.data) {
+            console.warn("No artifact loaded.");
+            return;
+          }
+          console.group("=== Bundle Structure & Actual Bin Sizes ===");
+          Object.entries(artifact.data).forEach(([key, val]) => {
+            if (val instanceof Uint8Array) {
+              console.log(`TOP '${key}': Uint8Array (${val.byteLength} bytes)`);
+            } else if (typeof val === "object" && val !== null) {
+              const keys = Object.keys(val);
+              console.log(`TOP '${key}': object (${keys.length} sub-keys)`);
+              keys.forEach((sub) => {
+                const subVal = val[sub];
+                if (subVal instanceof Uint8Array) {
+                  console.log(
+                    `   ↳ ${sub} → Uint8Array (${subVal.byteLength} bytes)`
+                  );
+                } else {
+                  console.log(`   ↳ ${sub} → ${typeof subVal}`);
+                }
+              });
+            } else {
+              console.log(`TOP '${key}':`, typeof val);
+            }
+          });
+          console.groupEnd();
+        });
+      }
+    </script>
+    <script type="module">
+      const html = document.documentElement;
+      const toggle = document.getElementById("theme-toggle");
+
+      // Determine initial theme
+      const saved =
+        localStorage.getItem("theme") ||
+        (window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light");
+      html.setAttribute("data-theme", saved);
+
+      // Update button label based on current theme
+      function updateToggleText() {
+        const isDark = html.getAttribute("data-theme") === "dark";
+        toggle.textContent = isDark
+          ? "Switch to Light Mode"
+          : "Switch to Dark Mode";
+      }
+      updateToggleText();
+
+      toggle.addEventListener("click", () => {
+        // Flip theme
+        const next =
+          html.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        html.setAttribute("data-theme", next);
+        localStorage.setItem("theme", next);
+        updateToggleText();
+      });
     </script>
   </body>
 </html>
