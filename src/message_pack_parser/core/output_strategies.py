@@ -177,8 +177,10 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                                 logger.error(f"struct pack error: {e}")
                                 raise  # Re-raise the exception after printing
 
-                        data_blobs[stream_name] = buffer.getvalue()
-                        byte_size = len(data_blobs[stream_name])
+                        stream_blobs = {}
+                        stream_blobs["default"] = buffer.getvalue()
+                        data_blobs[stream_name] = stream_blobs
+                        byte_size = len(data_blobs[stream_name]["default"])
 
                     row_major_cols_schema = [
                         self._get_column_schema(n, str(d), stream_name, metadata)
@@ -238,7 +240,7 @@ class HybridMessagePackZstStrategy(OutputStrategy):
 
         # 1. Handle the static game_meta.json asset.
         if game_meta_bytes:
-            data_payloads["game_meta"] = game_meta_bytes
+            data_payloads["game_meta"] = {"default": game_meta_bytes}
 
         # 2. Handle the defs_df by transforming it into a lookup map.
         if defs_df is not None and not defs_df.is_empty():
@@ -267,9 +269,9 @@ class HybridMessagePackZstStrategy(OutputStrategy):
                         for row in defs_df.to_dicts()
                     }
                     # Pack this dictionary into a single MessagePack binary blob.
-                    data_payloads["defs_map"] = msgpack.packb(
-                        defs_map, use_bin_type=True
-                    )
+                    data_payloads["defs_map"] = {
+                        "default": msgpack.packb(defs_map, use_bin_type=True)
+                    }
                 except KeyError as e:
                     # 3. Fail loudly if a column from the contract doesn't exist in the DataFrame.
                     raise OutputGenerationError(
