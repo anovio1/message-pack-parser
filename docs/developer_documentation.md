@@ -1,13 +1,13 @@
 # Developer Documentation (v3.2)
 
-This document provides a comprehensive overview of the Message Pack Parser's architecture, data flow, key design patterns, and core mechanics.
+This document provides a comprehensive overview of the Tubuin Processor's architecture, data flow, key design patterns, and core mechanics.
 
 - For a guide focused purely on adding new statistics, see `docs/aggregator_guide.md`.
 - For a complete list of all available data fields and their schemas, see the `docs/data_dictionary.md`.
 
 ## 1. High-Level Architecture & Core Concepts
 
-The application is a modular, 7-step pipeline designed for performance, robustness, and extensibility. The core orchestration logic resides in **`src/message_pack_parser/main.py`**, which manages the overall flow via the `parser` command-line entry point.
+The application is a modular, 7-step pipeline designed for performance, robustness, and extensibility. The core orchestration logic resides in **`src/tubuin_processor/main.py`**, which manages the overall flow via the `tube` command-line entry point.
 
 ### 1.1. Execution Modes: Parallel vs. Serial
 
@@ -34,12 +34,12 @@ A key architectural principle is centralizing configuration to prevent drift. Th
 
 1.  **Pre-Processing Source of Truth (`aspects_raw.py`)**
 
-    - **File:** `src/message_pack_parser/schemas/aspects_raw.py`
+    - **File:** `src/tubuin_processor/schemas/aspects_raw.py`
     - **Purpose:** Defines the raw data structure from the input `.mpk` files.
     - **Mechanism:** This file uses Pydantic models. Pre-processing rules (dequantization, enum mapping) are embedded directly into these models using `Field(metadata={...})`. This configuration is used by the **`value_transformer.py`** step to produce clean, analytically-ready data.
 
 2.  **Post-Processing Source of Truth (`output_contracts.py`)**
-    - **File:** `src/message_pack_parser/schemas/output_contracts.py`
+    - **File:** `src/tubuin_processor/schemas/output_contracts.py`
     - **Purpose:** Defines how the final, clean DataFrames (both aggregated stats and unaggregated streams) should be transformed for specific downstream consumers.
     - **Mechanism:** This file contains a dictionary (`OUTPUT_CONTRACTS`) that maps a stat or stream name to its transformation contract. These rules can include quantization, type casting, and specifying a desired binary layout (`columnar` vs `row-major-mixed`). This configuration is used by the new **`output_transformer.py`** step.
 
@@ -178,11 +178,11 @@ This allows the main application loop in `main.py` to catch any `ParserError`, l
 
 ## 4. How to Run and Extend
 
-### Running the Parser
+### Running the Processor
 
-The application is exposed as a command-line tool via the `parser` command after installation. Install with `pip install -e .` and run `parser --help` for all options.
+The application is exposed as a command-line tool via the `tube` command after installation. Install with `pip install -e .` and run `tube --help` for all options.
 
-### Extending the Parser
+### Extending the Processor
 
 - **Adding a New Aspect:** Follow the schema registration pattern described in Section 1.3 and validate with `pytest`.
 - **Adding a New Aggregation Stat:** Please follow the detailed guide in **`docs/aggregator_guide.md`**.

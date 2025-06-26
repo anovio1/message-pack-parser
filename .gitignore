@@ -29,3 +29,4 @@ flows/__pycache__/
 data/**/*
 
 .vscode/**/*
+*.egg-info/

@@ -1,5 +1,5 @@
 from typer.testing import CliRunner
-from message_pack_parser.main import app
+from tubuin_processor.main import app
 
 runner = CliRunner()
 

@@ -2,7 +2,7 @@ import pytest
 import polars as pl
 from polars.testing import assert_frame_equal
 
-from message_pack_parser.core.aggregator import (
+from tubuin_processor.core.aggregator import (
     _calculate_damage_by_unit_def,
     _calculate_resources_by_team,
     _calculate_aggression_by_unit,
@@ -31,11 +31,11 @@ def test_perform_aggregations_computes_all_by_default(mocker):
     """Test that if no stats are requested, all stats in the registry are computed."""
     # Mock the helper functions to isolate the orchestration logic
     mock_calc_damage = mocker.patch(
-        'message_pack_parser.core.aggregator._calculate_damage_by_unit_def', 
+        'tubuin_processor.core.aggregator._calculate_damage_by_unit_def', 
         return_value=pl.DataFrame({"unit_def_id": [1]})
     )
     mock_calc_resources = mocker.patch(
-        'message_pack_parser.core.aggregator._calculate_resources_by_team',
+        'tubuin_processor.core.aggregator._calculate_resources_by_team',
         return_value=pl.DataFrame({"team_id": [1]})
     )
     
@@ -72,9 +72,9 @@ def test_calculate_aggression_by_unit(sample_dataframes):
 
 def test_perform_aggregations_computes_defaults(mocker):
     """Test that if no stats are requested, default stats are computed."""
-    mock_calc_damage = mocker.patch('message_pack_parser.core.aggregator._calculate_damage_by_unit_def', return_value=pl.DataFrame())
-    mock_calc_resources = mocker.patch('message_pack_parser.core.aggregator._calculate_resources_by_team', return_value=pl.DataFrame())
-    mock_calc_aggression = mocker.patch('message_pack_parser.core.aggregator._calculate_aggression_by_unit', return_value=pl.DataFrame())
+    mock_calc_damage = mocker.patch('tubuin_processor.core.aggregator._calculate_damage_by_unit_def', return_value=pl.DataFrame())
+    mock_calc_resources = mocker.patch('tubuin_processor.core.aggregator._calculate_resources_by_team', return_value=pl.DataFrame())
+    mock_calc_aggression = mocker.patch('tubuin_processor.core.aggregator._calculate_aggression_by_unit', return_value=pl.DataFrame())
 
     perform_aggregations(dataframes_by_aspect={}, stats_to_compute=[])
     

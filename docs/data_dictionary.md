@@ -2,7 +2,7 @@
 
 ### **`docs/data_dictionary.md`**
 
-# Message Pack Parser: Data Dictionary
+# Tubuin Processor: Data Dictionary
 
 **Document Version:** 1.0
 **Schema Version:** 3.1
@@ -45,7 +45,7 @@
 
 ### Purpose
 
-This document is the **canonical source of truth** for the schemas of all clean, analysis-ready Polars DataFrames available to the aggregator module (`src/message_pack_parser/core/aggregator.py`). It is intended to be the primary reference for anyone writing new statistical functions or performing data analysis.
+This document is the **canonical source of truth** for the schemas of all clean, analysis-ready Polars DataFrames available to the aggregator module (`src/tubuin_processor/core/aggregator.py`). It is intended to be the primary reference for anyone writing new statistical functions or performing data analysis.
 
 ### Audience
 
@@ -61,7 +61,7 @@ The data described herein has already been processed by the pipeline. This means
 
 ### Source of Truth
 
-These schemas are programmatically derived from the "clean" Pydantic models located in [`src/message_pack_parser/schemas/aspects.py`](../src/message_pack_parser/schemas/aspects.py). The Polars `DataType`s listed here are the result of a direct mapping from the Python type hints in those models.
+These schemas are programmatically derived from the "clean" Pydantic models located in [`src/tubuin_processor/schemas/aspects.py`](../src/tubuin_processor/schemas/aspects.py). The Polars `DataType`s listed here are the result of a direct mapping from the Python type hints in those models.
 
 ## 2. Versioning & Change Log
 
@@ -341,11 +341,11 @@ The pipeline provides the following data guarantees that analysts can rely on wh
 
 ## 7. Composite / Derived DataFrames
 
-This section documents the schemas of the final DataFrames produced by the statistical functions in the **`STATS_REGISTRY`**. These are derived, summary tables, not direct representations of the raw aspect data. Each statistic is now implemented in its own module within the `src/message_pack_parser/core/stats/` directory.
+This section documents the schemas of the final DataFrames produced by the statistical functions in the **`STATS_REGISTRY`**. These are derived, summary tables, not direct representations of the raw aspect data. Each statistic is now implemented in its own module within the `src/tubuin_processor/core/stats/` directory.
 
 ### `aggression_by_unit`
 
-> **Function:** [`_calculate_aggression_by_unit`](../src/message_pack_parser/core/stats/aggression_by_unit.py)
+> **Function:** [`_calculate_aggression_by_unit`](../src/tubuin_processor/core/stats/aggression_by_unit.py)
 >
 > **Cardinality:** One row per `unit_id` that has position data.
 >
@@ -356,11 +356,11 @@ This section documents the schemas of the final DataFrames produced by the stati
 | `unit_id`          | `pl.Int64`       | The unique ID of the unit being scored.                                             | Non-null. Primary Key.                                |
 | `aggression_score` | `pl.Float64`     | A composite score representing total distance-over-time. Higher is more aggressive. | Non-null. The result of summing `aggression_impulse`. |
 
-This section documents the schemas of the final DataFrames produced by the statistical functions in the `STATS_REGISTRY`. These are derived, summary tables, not direct representations of the raw aspect data. Each statistic is implemented in its own module within the [`src/message_pack_parser/core/stats/`](../src/message_pack_parser/core/stats/) directory.
+This section documents the schemas of the final DataFrames produced by the statistical functions in the `STATS_REGISTRY`. These are derived, summary tables, not direct representations of the raw aspect data. Each statistic is implemented in its own module within the [`src/tubuin_processor/core/stats/`](../src/tubuin_processor/core/stats/) directory.
 
 ### `player_economic_efficiency`
 
-> **Source File:** [`.../stats/player_economic_efficiency.py`](../src/message_pack_parser/core/stats/player_economic_efficiency.py)
+> **Source File:** [`.../stats/player_economic_efficiency.py`](../src/tubuin_processor/core/stats/player_economic_efficiency.py)
 >
 > **Cardinality:** One row per `player_id`.
 >
@@ -376,7 +376,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `force_composition_timeline`
 
-> **Source File:** [`.../stats/force_composition_timeline.py`](../src/message_pack_parser/core/stats/force_composition_timeline.py)
+> **Source File:** [`.../stats/force_composition_timeline.py`](../src/tubuin_processor/core/stats/force_composition_timeline.py)
 >
 > **Cardinality:** One row per `player_id` per `minute`.
 >
@@ -390,7 +390,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `player_apm_and_focus`
 
-> **Source File:** [`.../stats/player_apm_and_focus.py`](../src/message_pack_parser/core/stats/player_apm_and_focus.py)
+> **Source File:** [`.../stats/player_apm_and_focus.py`](../src/tubuin_processor/core/stats/player_apm_and_focus.py)
 >
 > **Cardinality:** One row per `player_id` per `minute`.
 >
@@ -406,7 +406,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `combat_engagement_summary`
 
-> **Source File:** [`.../stats/combat_engagement_summary.py`](../src/message_pack_parser/core/stats/combat_engagement_summary.py)
+> **Source File:** [`.../stats/combat_engagement_summary.py`](../src/tubuin_processor/core/stats/combat_engagement_summary.py)
 >
 > **Cardinality:** One row per discrete combat engagement.
 >
@@ -425,7 +425,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `map_control_timeline`
 
-> **Source File:** [`.../stats/map_control_timeline.py`](../src/message_pack_parser/core/stats/map_control_timeline.py)
+> **Source File:** [`.../stats/map_control_timeline.py`](../src/tubuin_processor/core/stats/map_control_timeline.py)
 >
 > **Cardinality:** One row per `player_id` per `minute`.
 >
@@ -441,7 +441,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `player_collaboration`
 
-> **Source File:** [`.../stats/player_collaboration.py`](../src/message_pack_parser/core/stats/player_collaboration.py)
+> **Source File:** [`.../stats/player_collaboration.py`](../src/tubuin_processor/core/stats/player_collaboration.py)
 >
 > **Cardinality:** One row per `player_id`.
 >
@@ -459,7 +459,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `crisis_response_index`
 
-> **Source File:** [`.../stats/crisis_response_index.py`](../src/message_pack_parser/core/stats/crisis_response_index.py)
+> **Source File:** [`.../stats/crisis_response_index.py`](../src/tubuin_processor/core/stats/crisis_response_index.py)
 >
 > **Cardinality:** One row per "crisis event" (a sustained attack on a player's unit).
 >
@@ -476,7 +476,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `damage_by_unit_def`
 
-> **Function:** [`_calculate_damage_by_unit_def`](../src/message_pack_parser/core/stats/damage_by_unit_def.py)
+> **Function:** [`_calculate_damage_by_unit_def`](../src/tubuin_processor/core/stats/damage_by_unit_def.py)
 >
 > | Cardinality: One row per unique `unit_def_id` that dealt damage.
 >
@@ -489,7 +489,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `resources_by_player`
 
-> **Function:** [`_calculate_resources_by_player`](../src/message_pack_parser/core/stats/resources_by_player.py)
+> **Function:** [`_calculate_resources_by_player`](../src/tubuin_processor/core/stats/resources_by_player.py)
 >
 > **Cardinality:** One row per `player_id`.
 >
@@ -506,7 +506,7 @@ This section documents the schemas of the final DataFrames produced by the stati
 
 ### `unit_economic_contribution_binned`
 
-> **Source File:** [`unit_economic_contribution_binned.py`](../src/message_pack_parser/core/stats/unit_economic_contribution_binned.py)
+> **Source File:** [`unit_economic_contribution_binned.py`](../src/tubuin_processor/core/stats/unit_economic_contribution_binned.py)
 >
 > **Cardinality:** One row per (`team_id`, `unit_def_id`, `time_bin_start_frame`) combination where economic activity or unit production occurred.
 >
@@ -560,4 +560,4 @@ if damage_df and events_df:
 
 - **This Document's Location:** `docs/data_dictionary.md`
 - **Guide for Implementation:** For details on how to write new statistical functions using this data, see [`docs/aggregator_guide.md`](./aggregator_guide.md).
-- **Source Code Schemas:** The authoritative Pydantic models are defined in [`src/message_pack_parser/schemas/aspects.py`](../src/message_pack_parser/schemas/aspects.py).
+- **Source Code Schemas:** The authoritative Pydantic models are defined in [`src/tubuin_processor/schemas/aspects.py`](../src/tubuin_processor/schemas/aspects.py).

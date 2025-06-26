@@ -10,7 +10,7 @@ This release introduces a fully pluggable and extensible aggregation engine, sig
 - **Pluggable Stats Architecture:** The aggregator now dynamically discovers and registers statistics from modules within the new `src/core/stats/` package. Developers can add new analytics by simply adding new files to this directory.
 - **New Statistics:** Implemented a full suite of seven advanced statistics, including `player_economic_efficiency`, `combat_engagement_summary`, and `crisis_response_index`.
 - **Configurable Default Stats:** The `Stat` object now includes a `default_enabled` flag, allowing maintainers to curate which stats are run when no specific stats are requested by the user.
-- **`list-stats` CLI Command:** A new command, `mpp-parser list-stats`, was added to display all available aggregation statistics and their descriptions, populated dynamically from the registry.
+- **`list-stats` CLI Command:** A new command, `tube list-stats`, was added to display all available aggregation statistics and their descriptions, populated dynamically from the registry.
 -   **CLI Validation:** The `--stat` option now uses a Typer callback to validate input against the registry, providing immediate feedback for typos.
 -   **Comprehensive Documentation:**
     -   Added this `CHANGELOG.md`.
@@ -40,5 +40,5 @@ Major architectural refactor focused on performance, robustness, and developer e
 - **Centralized Logging:** Replaced all `print()` statements with a configurable `logging` system.
 
 ### Changed
-- **Project Structure:** The project was converted into a standard, installable Python package with a `pyproject.toml` and a `src/message_pack_parser` layout.
+- **Project Structure:** The project was converted into a standard, installable Python package with a `pyproject.toml` and a `src/tubuin_processor` layout.
 - **Single Source of Truth:** `aspects_raw.py` became the single source of truth for transformation rules, deprecating the static `dequantization_config.py`.

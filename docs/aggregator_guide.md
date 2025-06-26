@@ -3,11 +3,11 @@
 
 The aggregator system is designed as a **pluggable architecture**. You do not need to modify the core aggregation engine (`aggregator.py`) to add new analytical statistics. Instead, you simply add new Python files to the `stats` sub-package, and the system will automatically discover and register them.
 
-This guide will walk you through the process of creating and adding a new statistic to the parser.
+This guide will walk you through the process of creating and adding a new statistic to the processor.
 
 ## 2. The `Stat` Object
 
-Every registered statistic is defined by a `Stat` object, which lives in `src/message_pack_parser/core/stats/types.py`. It's a simple container with three fields:
+Every registered statistic is defined by a `Stat` object, which lives in `src/tubuin_processor/core/stats/types.py`. It's a simple container with three fields:
 
 -   `func`: The Python function that contains your Polars logic.
 -   `description`: A brief, user-facing string explaining what the stat calculates. This is shown in the CLI help text.
@@ -20,7 +20,7 @@ Let's create a new statistic called `total_units_lost` as an example.
 ### Step 1: Create the Stat Module File
 
 Create a new file inside the stats package:
-`src/message_pack_parser/core/stats/total_units_lost.py`
+`src/tubuin_processor/core/stats/total_units_lost.py`
 
 ### Step 2: Write the Calculation Function
 
@@ -31,7 +31,7 @@ Inside your new file, write a function that performs the analysis. It must follo
 -   **Output:** It must return a single Polars DataFrame (`pl.DataFrame`).
 
 ```python
-# In: src/message_pack_parser/core/stats/total_units_lost.py
+# In: src/tubuin_processor/core/stats/total_units_lost.py
 
 import polars as pl
 from typing import Dict
@@ -59,7 +59,7 @@ def calculate(dataframes: Dict[str, pl.DataFrame]) -> pl.DataFrame:
 At the bottom of the *same file*, create an instance of the `Stat` object. **It must be named `STAT_DEFINITION`** for the dynamic discovery system to find it.
 
 ```python
-# In: src/message_pack_parser/core/stats/total_units_lost.py
+# In: src/tubuin_processor/core/stats/total_units_lost.py
 # (at the bottom of the file)
 
 STAT_DEFINITION = Stat(
@@ -69,21 +69,21 @@ STAT_DEFINITION = Stat(
 )
 ```
 
-### Step 4: Run the Parser
+### Step 4: Run the Processor
 
 That's it! No other files need to be modified. The dynamic registry in `stats/__init__.py` will automatically find your new module.
 
-You can now run the parser and use your new stat:
+You can now run the processor and use your new stat:
 
 1.  **List all stats to see yours:**
     ```bash
-    parser list-stats
+    tube list-stats
     # Output will now include:
     #   - total_units_lost: Counts the total number of units lost by each player.
     ```
 2.  **Compute your specific stat:**
     ```bash
-    parser run <REPLAY_ID> ... -s total_units_lost
+    tube run <REPLAY_ID> ... -s total_units_lost
     ```
 
 ## 4. Best Practices

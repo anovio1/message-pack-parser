@@ -1,4 +1,4 @@
-# Message Pack Processor
+# Tubuin Processor
 
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Pytest](https://img.shields.io/badge/tested%20with-pytest-009ee5.svg)](https://pytest.org)
@@ -10,7 +10,7 @@ This tool is designed to be robust, efficient, and extensible, using a modern Py
 
 ### Quick Run
 
-`mpp-parser run -i example/i -o example/o -c example/c test_replay_id --log-level DEBUG --output-format hybrid-mpk-zst`
+`tube run -i example/i -o example/o -c example/c test_replay_id --log-level DEBUG --output-format hybrid-mpk-zst`
 
 ## Core Features
 
@@ -18,17 +18,17 @@ This tool is designed to be robust, efficient, and extensible, using a modern Py
 - **Polars-powered**: Analytics and aggregations are performed with Polars, enabling fast analytics across large ingested datasets.
 - **Plugin-friendly:** New summary statistics can be added as [simple Python plugins](docs/aggregator_guide.md#3-how-to-create-a-new-statistic-tutorial).
 - **Output Transformation:** A second source of truth (`output_contracts.py`) defines how aggregated data should be transformed (e.g., quantized, cast) for downstream consumers.
-- **Multiple Output Formats:** Supports various outputs: Columnar/Row-major binary formats and (msgpack, parquet, jsonl) [(see strats)](src/message_pack_parser/core/output_strategies.py)
+- **Multiple Output Formats:** Supports various outputs: Columnar/Row-major binary formats and (msgpack, parquet, jsonl) [(see strats)](src/tubuin_processor/core/output_strategies.py)
 
 
 ## Basic Flow
 ```mermaid
 graph LR
-    A["Emitter Data (.mpk, [.json, .csv])"] --> B["Message Pack Processor"]
+    A["Emitter Data (.mpk, [.json, .csv])"] --> B["Tubuin Processor"]
     B --> C["Hybrid Binary Artifact<br>(MPK+binary blobs+zstd)<br>(.mpk.zst)"]
     C -."output demo".-> D["Viewer (GitHub Pages Demo) Link Below"]
 ```
-**[▶️ Open the Output Demo](https://anovio1.github.io/message-pack-processor/example/o/binzst-consumer.html)**
+**[▶️ Open the Output Demo](https://anovio1.github.io/tubuin-processor/example/o/binzst-consumer.html)**
 
 ## Installation
 
@@ -38,7 +38,7 @@ A virtual environment is highly recommended. This project uses `pyproject.toml` 
 
     ```bash
     git clone <your-repo-url>
-    cd message_pack_processor
+    cd tubuin-processor
     ```
 
 2.  **Create and activate a virtual environment:**
@@ -49,25 +49,25 @@ A virtual environment is highly recommended. This project uses `pyproject.toml` 
     ```
 
 3.  **Install the package in editable mode:**
-    This command installs all dependencies from `pyproject.toml` and makes the `mpp-parser` command available in your shell. The `-e` flag means changes to your source code are reflected immediately.
+    This command installs all dependencies from `pyproject.toml` and makes the `tube` command available in your shell. The `-e` flag means changes to your source code are reflected immediately.
     ```bash
     pip install -e .
     ```
 
 ## Usage
 
-The application is run via the `mpp-parser` command-line tool.
+The application is run via the `tube` command-line tool.
 
 ### Quick Run
 
-`mpp-parser run -i example/i -o example/o -c example/c test_replay_id --log-level DEBUG --output-format hybrid-mpk-zst`
+`tube run -i example/i -o example/o -c example/c test_replay_id --log-level DEBUG --output-format hybrid-mpk-zst`
 
 ### Full Help
 
 For a full list of all commands and options:
 
 ```bash
-mpp-parser --help
+tube --help
 ```
 
 ### Basic Run
@@ -76,7 +76,7 @@ This command processes a replay, computing all available stats by default and sa
 
 ````bash
 # Example run
-mpp-parser run my-replay-001 \
+tube run my-replay-001 \
     --input-dir ./path/to/your/mpk/files \
     --cache-dir ./data/cache \
     --output-dir ./data/output \
@@ -88,7 +88,7 @@ To run the processor, you need to provide a unique ID for the replay and specify
 
 ```bash
 # Example run
-mpp-parser run my-replay-001 \
+tube run my-replay-001 \
     --input-dir ./path/to/your/mpk/files \
     --cache-dir ./data/cache \
     --output-dir ./data/output
@@ -111,10 +111,10 @@ You have granular control over which aggregated statistics and which raw data st
 Use the `--stat` or `-s` flag to select one or more summary statistics. If you don't use this flag, a default set of stats will be computed.
 ```bash
 # Compute only the damage breakdown stat
-mpp-parser run <REPLAY_ID> ... -s damage_by_unit_def
+tube run <REPLAY_ID> ... -s damage_by_unit_def
 
 # Compute both damage and resource stats
-mpp-parser run <REPLAY_ID> ... -s damage_by_unit_def -s resources_by_team
+tube run <REPLAY_ID> ... -s damage_by_unit_def -s resources_by_team
 ```
 
 #### Including Unaggregated Data Streams
@@ -122,10 +122,10 @@ mpp-parser run <REPLAY_ID> ... -s damage_by_unit_def -s resources_by_team
 Use the `--stream` or `-u` flag to select one or more raw data streams. By default, only the `command_log` is included.
 ```bash
 # Output the default command_log AND the unit_positions stream
-mpp-parser run <REPLAY_ID> ... -u unit_positions
+tube run <REPLAY_ID> ... -u unit_positions
 
 # Output only the damage_log and unit_events streams (this will NOT include command_log)
-mpp-parser run <REPLAY_ID> ... -u damage_log -u unit_events
+tube run <REPLAY_ID> ... -u damage_log -u unit_events
 ```
 
 ---
@@ -142,19 +142,19 @@ These formats are optimized for machine consumption and are ideal for powering f
 1.  **Hybrid Bundle (Default): `hybrid-mpk-zst`**
     This is the most flexible format. It creates a **single `.mpk.zst` file** containing a master schema and all the binary data blobs. It can contain a mix of columnar and row-major streams, as defined in `output_contracts.py`.
     ```bash
-    mpp-parser run <REPLAY_ID> ... --output-format hybrid-mpk-zst
+    tube run <REPLAY_ID> ... --output-format hybrid-mpk-zst
     ```
 
 2.  **Row-Major (Streaming-Optimized): `row-major-zst`**
     This format is designed for consumers that process data row-by-row (e.g., replaying events). It creates a directory containing a `schema.json` and one compressed binary file per table. This format requires a matching contract to be defined in `output_contracts.py`.
     ```bash
-    mpp-parser run <REPLAY_ID> ... --output-format row-major-zst
+    tube run <REPLAY_ID> ... --output-format row-major-zst
     ```
     
 3.  **Columnar (Analytics-Optimized): `columnar-zst`**
     This format is ideal for analytical UIs (charting, data exploration). It creates a directory containing a `schema.json` and one compressed binary file per column.
     ```bash
-    mpp-parser run <REPLAY_ID> ... --output-format columnar-zst
+    tube run <REPLAY_ID> ... --output-format columnar-zst
     ```
 
 #### Standard Utility Formats
@@ -162,10 +162,10 @@ These formats are optimized for machine consumption and are ideal for powering f
 These formats are useful for general-purpose data analysis or interoperability with other tools.
 ```bash
 # Get a directory of standard, self-describing Parquet files
-mpp-parser run <REPLAY_ID> ... --output-format parquet-dir
+tube run <REPLAY_ID> ... --output-format parquet-dir
 
 # Get a directory of gzipped JSON Lines files
-mpp-parser run <REPLAY_ID> ... --output-format jsonl-gzip
+tube run <REPLAY_ID> ... --output-format jsonl-gzip
 ```
 
 ---
@@ -176,10 +176,10 @@ Use these commands to discover what you can compute and output.
 
 ```bash
 # See a list of all recognized aggregation stats
-mpp-parser list-stats
+tube list-stats
 
 # See a list of all available unaggregated data streams
-mpp_parser list-streams
+tube list-streams
 ```
 
 ---
@@ -189,7 +189,7 @@ mpp_parser list-streams
 To enable caching, you must run in serial mode.
 
 ```bash
-mpp-parser run <REPLAY_ID> ... --serial
+tube run <REPLAY_ID> ... --serial
 ```
 
 ### List Recognized Aspects
@@ -197,7 +197,7 @@ mpp-parser run <REPLAY_ID> ... --serial
 To see which aspect files the current schemas are configured to handle:
 
 ```bash
-mpp-parser list-aspects
+tube list-aspects
 ```
 
 ## Testing
@@ -264,7 +264,7 @@ graph TD
 The project uses a standard `src`-layout for clean packaging and imports.
 
 ```
-message_pack_parser/
+tubuin_processor/
 ├── pyproject.toml
 ├── requirements.txt
 ├── CHANGELOG.md
@@ -274,7 +274,7 @@ message_pack_parser/
 │   ├── data_dictionary.md
 │   └── design_document.md
 ├── src/
-│   └── message_pack_parser/
+│   └── tubuin_processor/
 │       ├── __init__.py
 │       ├── main.py                     # CLI Entry Point & Orchestration
 │       ├── logging_config.py           # Centralized Logging Setup

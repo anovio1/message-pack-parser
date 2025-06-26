@@ -1,5 +1,5 @@
 import pytest
-from message_pack_parser.utils.config_validator import validate_configurations
+from tubuin_processor.utils.config_validator import validate_configurations
 
 def test_all_configurations_are_consistent():
     """
