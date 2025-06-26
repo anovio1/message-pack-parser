@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced RTS Analysis Concepts</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #121212;
+        color: #e0e0e0;
+        margin: 20px;
+        padding: 20px;
+      }
+      h1, h2 {
+        font-weight: 300;
+        border-bottom: 1px solid #444;
+        padding-bottom: 10px;
+      }
+      h2 { margin-top: 60px; }
+      p.blurb {
+        line-height: 1.6;
+        max-width: 800px;
+        color: #b0b0b0;
+        margin-bottom: 25px;
+        background-color: #1e1e1e;
+        padding: 15px;
+        border-left: 3px solid #007bff;
+        border-radius: 4px;
+      }
+      strong { color: #58a6ff; }
+      .chart-container {
+        height: 500px;
+        background-color: #1e1e1e;
+        padding: 20px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Advanced Visualization Concepts</h1>
+
+    <!-- 1. Economic Snapshot Pie Chart -->
+    <h2>Economic Snapshot Pie Chart</h2>
+    <p class="blurb">
+      <strong>Columns Used:</strong> `time_bin_start_frame`, `unit_def_id`, `total_metal_produced_in_bin`.<br/>
+      <strong>Transformer Implications:</strong> This is a simple transformation. The function must accept a `team_id` and a specific `time_bin` (or a narrow range). It filters the data for that time and team, then aggregates the `total_metal_produced_in_bin` for each `unit_def_id`. The output is a simple array of `{name, value}` objects for the pie chart.
+    </p>
+    <div id="chart-pie" class="chart-container"></div>
+
+    <!-- 2. Build Order Arc Diagram -->
+    <h2>Build Order Arc Diagram</h2>
+    <p class="blurb">
+      <strong>Columns Used:</strong> `time_bin_start_frame`, `unit_def_id`, `total_units_produced_in_bin`.<br/>
+      <strong>Transformer Implications:</strong> This is a more complex, sequential transformation. The function filters for production events (`total_units_produced_in_bin > 0`) for a single team. It then sorts these events by time and iterates through them to create a list of "edges" (e.g., from "Unit A" to "Unit B"). It counts the frequency of each edge to determine the link's thickness. The output is a list of nodes and a list of links with values.
+    </p>
+    <div id="chart-arc" class="chart-container"></div>
+
+    <!-- 3. Unit Role Sunburst Chart -->
+    <h2>Unit Role Sunburst Chart</h2>
+    <p class="blurb">
+      <strong>Columns Used:</strong> `unit_def_id`, `total_metal_produced_in_bin`, `total_metal_consumed_in_bin`.<br/>
+      <strong>Transformer Implications:</strong> This requires a hierarchical transformation. The function aggregates the total production and consumption for each `unit_def_id`. It then builds a nested structure like `{ name: 'Economy', children: [ { name: 'Producers', children: [...] }, { name: 'Consumers', children: [...] } ] }`, where the final children are the units with their aggregated values.
+    </p>
+    <div id="chart-sunburst" class="chart-container"></div>
+
+    <!-- 4. Economic Rhythm Horizon Chart (Approximation) -->
+    <h2>Economic Rhythm (Multi-Metric Plot)</h2>
+    <p class="blurb">
+      <strong>Note:</strong> A true Horizon Chart is highly specialized. This chart approximates the goal by plotting multiple key metrics on the same timeline, allowing for rhythm comparison.<br/>
+      <strong>Columns Used:</strong> `time_bin_start_frame`, `total_metal_produced_in_bin`, `total_energy_produced_in_bin`, `total_units_produced_in_bin`.<br/>
+      <strong>Transformer Implications:</strong> The transformer aggregates data by time bin for a single team. It creates a separate data series for each metric (Metal, Energy, Units). This is primarily a filtering and grouping task, resulting in multiple arrays of data points for the chart.
+    </p>
+    <div id="chart-rhythm" class="chart-container"></div>
+
+    <!-- 5. "Time to Max" Unit Analysis (Box Plot) -->
+    <h2>"Time to Max" Unit Analysis (Box Plot)</h2>
+    <p class="blurb">
+      <strong>Note:</strong> This chart requires data from **many games** to be meaningful. The data below is **mocked** to demonstrate the visual.<br/>
+      <strong>Columns Used (from many games):</strong> `game_id`, `team_id`, `unit_def_id`, `time_bin_start_frame`, `units_alive_in_bin`.<br/>
+      <strong>Transformer Implications:</strong> The transformer would be complex. For each game, it would find the *first* `time_bin_start_frame` where a specific unit (e.g., a Tier 3 unit) appears. It would collect these "first appearance times" for a specific player across hundreds of games, then group them by `unit_def_id` to create the data distribution needed for a box plot.
+    </p>
+    <div id="chart-boxplot" class="chart-container"></div>
+
+    <!-- 6. Lag Correlation Matrix (Heatmap) -->
+    <h2>Lag Correlation Matrix (Heatmap)</h2>
+    <p class="blurb">
+      <strong>Note:</strong> This is a highly advanced analysis that requires comparing two time series. The data below is **mocked** to demonstrate the visual concept.<br/>
+      <strong>Columns Used:</strong> `time_bin_start_frame`, `team_id`, `unit_def_id`, `total_units_produced_in_bin`.<br/>
+      <strong>Transformer Implications:</strong> This is the most complex transformer. It would create two time series vectors (e.g., Player A's production of "Air" units, Player B's production of "Anti-Air"). It then loops, shifting one series by a time lag (e.g., -30s, -20s, -10s, 0s, +10s...) and calculates the Pearson correlation coefficient at each lag. The resulting matrix of correlation values is then visualized as a heatmap.
+    </p>
+    <div id="chart-lag-heatmap" class="chart-container"></div>
+
+    <!-- 7. Resource Trade-Off Parallel Coordinates Plot -->
+    <h2>Resource Trade-Off Parallel Coordinates Plot</h2>
+    <p class="blurb">
+      <strong>Columns Used:</strong> `team_id`, `net_metal`, `net_energy`, `units_alive`. (Requires pre-calculation of net values).<br/>
+      <strong>Transformer Implications:</strong> The transformer takes a snapshot at a specific `time_bin`. It filters the data for that time, calculates net values for resources, and selects the desired numeric columns. The output is an array of arrays, where each inner array represents a player's economic state across the different metrics (axes).
+    </p>
+    <div id="chart-parallel" class="chart-container"></div>
+
+    <script>
+      // --- DATA (Same curated subset) ---
+      const rawData = [
+          { team_id: 0, unit_def_id: 49, time_bin_start_frame: 300, units_alive_in_bin: 1, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 32, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 142 },
+          { team_id: 0, unit_def_id: 140, time_bin_start_frame: 300, units_alive_in_bin: 1, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 7.5, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 0 },
+          { team_id: 1, unit_def_id: 281, time_bin_start_frame: 300, units_alive_in_bin: 1, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 80, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 802 },
+          { team_id: 1, unit_def_id: 370, time_bin_start_frame: 300, units_alive_in_bin: 2, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 23.7, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 0 },
+          { team_id: 0, unit_def_id: 49, time_bin_start_frame: 600, units_alive_in_bin: 1, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 83, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 833 },
+          { team_id: 0, unit_def_id: 140, time_bin_start_frame: 600, units_alive_in_bin: 3, total_units_produced_in_bin: 2, total_metal_produced_in_bin: 50.8, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 30 },
+          { team_id: 1, unit_def_id: 281, time_bin_start_frame: 600, units_alive_in_bin: 1, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 161, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 0 },
+          { team_id: 1, unit_def_id: 370, time_bin_start_frame: 600, units_alive_in_bin: 2, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 74, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 60 },
+          { team_id: 0, unit_def_id: 140, time_bin_start_frame: 900, units_alive_in_bin: 5, total_units_produced_in_bin: 2, total_metal_produced_in_bin: 92, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 60 },
+      ];
+
+      // --- CHART IMPLEMENTATIONS ---
+
+      // 1. Pie Chart
+      function createPieSnapshot(chartDom, data) {
+        const snapshotTime = 600;
+        const teamId = 0;
+        const filteredData = data.filter(d => d.team_id === teamId && d.time_bin_start_frame === snapshotTime && d.total_metal_produced_in_bin > 0);
+        const chartData = filteredData.map(d => ({
+          name: `Unit ${d.unit_def_id}`,
+          value: d.total_metal_produced_in_bin
+        }));
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          title: { text: `Team ${teamId} Metal Production @ ${snapshotTime/30} min`, left: 'center' },
+          tooltip: { trigger: 'item' },
+          series: [{ type: 'pie', radius: '50%', data: chartData }]
+        });
+      }
+
+      // 2. Arc Diagram
+      function createArcDiagram(chartDom, data) {
+        const teamId = 0;
+        const productionEvents = data
+          .filter(d => d.team_id === teamId && d.total_units_produced_in_bin > 0)
+          .sort((a, b) => a.time_bin_start_frame - b.time_bin_start_frame);
+        
+        const nodes = [...new Set(productionEvents.map(d => d.unit_def_id))].map(id => ({
+          name: `Unit ${id}`,
+          symbolSize: 10,
+          value: id
+        }));
+        
+        const links = new Map();
+        for (let i = 0; i < productionEvents.length - 1; i++) {
+          const sourceName = `Unit ${productionEvents[i].unit_def_id}`;
+          const targetName = `Unit ${productionEvents[i+1].unit_def_id}`;
+          const key = `${sourceName}->${targetName}`;
+          links.set(key, (links.get(key) || 0) + 1);
+        }
+
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          title: { text: `Team ${teamId} Build Order Flow` },
+          tooltip: {},
+          series: [{
+            type: 'graph',
+            layout: 'none', // We control the layout
+            data: nodes.map((node, i) => ({ ...node, x: i * 100, y: 250 })), // Place nodes on a line
+            edges: Array.from(links.entries()).map(([key, value]) => ({
+              source: key.split('->')[0],
+              target: key.split('->')[1],
+              value: value,
+              lineStyle: { width: Math.sqrt(value) * 2, curveness: 0.3 }
+            })),
+            label: { show: true }
+          }]
+        });
+      }
+
+      // 3. Sunburst Chart
+      function createSunburst(chartDom, data) {
+        const teamId = 0;
+        const teamData = data.filter(d => d.team_id === teamId);
+        const producers = new Map();
+        const consumers = new Map();
+        teamData.forEach(d => {
+          if (d.total_metal_produced_in_bin > 0) producers.set(d.unit_def_id, (producers.get(d.unit_def_id) || 0) + d.total_metal_produced_in_bin);
+          if (d.total_metal_consumed_in_bin > 0) consumers.set(d.unit_def_id, (consumers.get(d.unit_def_id) || 0) + d.total_metal_consumed_in_bin);
+        });
+        const chartData = {
+          name: 'Team 0 Metal',
+          children: [
+            { name: 'Producers', children: Array.from(producers.entries()).map(([id, val]) => ({ name: `Unit ${id}`, value: val })) },
+            { name: 'Consumers', children: Array.from(consumers.entries()).map(([id, val]) => ({ name: `Unit ${id}`, value: val })) }
+          ]
+        };
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          series: { type: 'sunburst', data: [chartData], radius: [0, '90%'] }
+        });
+      }
+
+      // 4. Rhythm Chart
+      function createRhythmChart(chartDom, data) {
+        const teamId = 0;
+        const teamData = data.filter(d => d.team_id === teamId);
+        const timeBins = [...new Set(teamData.map(d => d.time_bin_start_frame))].sort((a,b) => a - b);
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          tooltip: { trigger: 'axis' },
+          legend: { data: ['Metal Prod', 'Energy Prod', 'Units Prod'] },
+          xAxis: { type: 'category', data: timeBins.map(t => `${t/30}min`) },
+          yAxis: [
+            { type: 'value', name: 'Metal/Energy' },
+            { type: 'value', name: 'Units', position: 'right' }
+          ],
+          series: [
+            { name: 'Metal Prod', type: 'line', data: timeBins.map(t => teamData.find(d=>d.time_bin_start_frame===t)?.total_metal_produced_in_bin || 0) },
+            { name: 'Energy Prod', type: 'line', data: timeBins.map(t => teamData.find(d=>d.time_bin_start_frame===t)?.total_energy_produced_in_bin || 0) },
+            { name: 'Units Prod', type: 'bar', yAxisIndex: 1, data: timeBins.map(t => teamData.find(d=>d.time_bin_start_frame===t)?.total_units_produced_in_bin || 0) }
+          ]
+        });
+      }
+
+      // 5. Box Plot (Mocked)
+      function createBoxPlot(chartDom) {
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          title: { text: 'Time to First Tier 2 Unit (Mock Data)' },
+          xAxis: { type: 'category', data: ['Player A', 'Player B', 'Player C'] },
+          yAxis: { type: 'value', name: 'Time (seconds)' },
+          series: [{
+            type: 'boxplot',
+            data: [
+              [240, 280, 290, 300, 350], // Player A times
+              [280, 310, 320, 330, 360], // Player B times
+              [250, 260, 270, 280, 400]  // Player C times
+            ]
+          }]
+        });
+      }
+
+      // 6. Lag Correlation (Mocked)
+      function createLagHeatmap(chartDom) {
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          title: { text: 'Correlation: P1 Tanks vs P2 Anti-Tank (Mock Data)' },
+          xAxis: { type: 'category', data: ['-30s', '-15s', '0s', '+15s', '+30s'] },
+          yAxis: { type: 'category', data: ['P2 builds Anti-Tank'] },
+          visualMap: { min: -1, max: 1, calculable: true, inRange: { color: ['#d73027', '#ffffbf', '#1a9850'] } },
+          series: [{
+            type: 'heatmap',
+            data: [ [0,0,-0.2], [1,0,0.1], [2,0,0.4], [3,0,0.8], [4,0,0.6] ] // [x, y, correlation]
+          }]
+        });
+      }
+
+      // 7. Parallel Coordinates
+      function createParallelPlot(chartDom, data) {
+        const snapshotTime = 600;
+        const filteredData = data.filter(d => d.time_bin_start_frame === snapshotTime);
+        const schema = [
+          { name: 'team_id', index: 0, text: 'Team' },
+          { name: 'net_metal', index: 1, text: 'Net Metal' },
+          { name: 'net_energy', index: 2, text: 'Net Energy' },
+          { name: 'units_alive', index: 3, text: 'Army Size' }
+        ];
+        const chartData = filteredData.map(d => [
+          d.team_id,
+          d.total_metal_produced_in_bin - d.total_metal_consumed_in_bin,
+          d.total_energy_produced_in_bin - d.total_energy_consumed_in_bin,
+          d.units_alive_in_bin
+        ]);
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          parallelAxis: schema.map(item => ({ dim: item.index, name: item.text })),
+          series: {
+            type: 'parallel',
+            data: chartData
+          }
+        });
+      }
+
+      // --- INITIALIZE ALL CHARTS ---
+      createPieSnapshot(document.getElementById('chart-pie'), rawData);
+      createArcDiagram(document.getElementById('chart-arc'), rawData);
+      createSunburst(document.getElementById('chart-sunburst'), rawData);
+      createRhythmChart(document.getElementById('chart-rhythm'), rawData);
+      createBoxPlot(document.getElementById('chart-boxplot'));
+      createLagHeatmap(document.getElementById('chart-lag-heatmap'));
+      createParallelPlot(document.getElementById('chart-parallel'), rawData);
+
+    </script>
+  </body>
+</html>

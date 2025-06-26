@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced RTS Economic Analysis with ECharts and D3 for sorting</title>
+    <!-- 1. Include the ECharts library -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        background-color: #121212;
+        color: #e0e0e0;
+        margin: 20px;
+      }
+      h1,
+      h2 {
+        font-weight: 300;
+        border-bottom: 1px solid #444;
+        padding-bottom: 10px;
+      }
+      h2 {
+        margin-top: 50px;
+      }
+      p {
+        line-height: 1.6;
+        max-width: 800px;
+      }
+      .chart-container {
+        /* ECharts needs a div with an explicit height */
+        height: 500px;
+        background-color: #1e1e1e;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+      .small-multiples-container {
+        height: 800px; /* Taller container for two charts */
+        background-color: #1e1e1e;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Advanced RTS Visualizations</h1>
+    <p>
+      Demonstrating advanced techniques using Apache ECharts. These methods are
+      chosen for their high data density and ability to answer more complex
+      strategic questions.
+    </p>
+
+    <!-- CHART 4: HEATMAP -->
+    <h2>Chart 4: Unit Contribution Heatmap (Team 0)</h2>
+    <p>
+      This chart answers: "At any given moment, which units are the biggest
+      economic drivers or drains?" Blue cells show positive net metal income;
+      red cells show a net loss. The intensity of the color shows the magnitude.
+      You can instantly spot the economic backbone of the team (Unit 140) and
+      see where resources are being spent (the red cells for Unit 49).
+    </p>
+
+    Heatmap: Used time_bin_start_frame (X-axis), unit_def_id (Y-axis), and
+    calculated a net value from total_metal_produced_in_bin and
+    total_metal_consumed_in_bin for the cell color.
+    <div id="chart4-container" class="chart-container"></div>
+
+    <!-- CHART 5: SANKEY DIAGRAM -->
+    <h2>Chart 5: Economic Flow Sankey Diagram (Team 0, All Time)</h2>
+    <p>
+      This chart answers: "Where did all the metal come from and where did it
+      go?" It visualizes the total flow of the economy. We see metal being
+      produced by certain units, flowing into the central "Team 0 Economy," and
+      then flowing out to be consumed by other units or activities. This is a
+      powerful way to show the overall economic structure in a single,
+      compelling view.
+    </p>
+    Sankey Diagram: Aggregated total_metal_produced_in_bin and
+    total_metal_consumed_in_bin for each unit_def_id to create the flow values.
+    <div id="chart5-container" class="chart-container"></div>
+
+    <!-- CHART 6: SMALL MULTIPLES -->
+    <h2>Chart 6: Comparative Small Multiples (Team 0 vs Team 1)</h2>
+    <p>
+      This is the definitive way to answer: "How do the strategies of two teams
+      directly compare?" By placing their economic composition charts
+      side-by-side with a synchronized timeline, comparison becomes effortless.
+      Notice how you can immediately see Team 1 relies heavily on Unit 370 for
+      production, a unit Team 0 doesn't even have.
+      <strong
+        >Hover over one chart, and the timeline crosshair will appear on
+        both!</strong
+      >
+    </p>
+    Small Multiples: Used time_bin_start_frame, team_id, unit_def_id, and
+    total_metal_produced_in_bin to create two separate, comparable charts.
+    <div id="chart6-container" class="small-multiples-container"></div>
+
+    <script>
+      // --- DATA (Curated subset of your provided data) ---
+      const rawData = [
+        {
+          team_id: 0,
+          unit_def_id: 49,
+          time_bin_start_frame: 0,
+          total_metal_produced_in_bin: 6.1,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 281,
+          time_bin_start_frame: 0,
+          total_metal_produced_in_bin: 6.3,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 370,
+          time_bin_start_frame: 0,
+          total_metal_produced_in_bin: 0.3,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 0,
+          unit_def_id: 49,
+          time_bin_start_frame: 300,
+          total_metal_produced_in_bin: 20,
+          total_metal_consumed_in_bin: 32,
+        },
+        {
+          team_id: 0,
+          unit_def_id: 140,
+          time_bin_start_frame: 300,
+          total_metal_produced_in_bin: 7.5,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 281,
+          time_bin_start_frame: 300,
+          total_metal_produced_in_bin: 20,
+          total_metal_consumed_in_bin: 80,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 370,
+          time_bin_start_frame: 300,
+          total_metal_produced_in_bin: 23.7,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 0,
+          unit_def_id: 49,
+          time_bin_start_frame: 600,
+          total_metal_produced_in_bin: 20,
+          total_metal_consumed_in_bin: 83,
+        },
+        {
+          team_id: 0,
+          unit_def_id: 140,
+          time_bin_start_frame: 600,
+          total_metal_produced_in_bin: 50.8,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 281,
+          time_bin_start_frame: 600,
+          total_metal_produced_in_bin: 20,
+          total_metal_consumed_in_bin: 161,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 370,
+          time_bin_start_frame: 600,
+          total_metal_produced_in_bin: 74,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 0,
+          unit_def_id: 49,
+          time_bin_start_frame: 900,
+          total_metal_produced_in_bin: 20,
+          total_metal_consumed_in_bin: 83,
+        },
+        {
+          team_id: 0,
+          unit_def_id: 140,
+          time_bin_start_frame: 900,
+          total_metal_produced_in_bin: 92,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 281,
+          time_bin_start_frame: 900,
+          total_metal_produced_in_bin: 20,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 370,
+          time_bin_start_frame: 900,
+          total_metal_produced_in_bin: 81.5,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 0,
+          unit_def_id: 140,
+          time_bin_start_frame: 1200,
+          total_metal_produced_in_bin: 111,
+          total_metal_consumed_in_bin: 0,
+        },
+        {
+          team_id: 1,
+          unit_def_id: 370,
+          time_bin_start_frame: 1200,
+          total_metal_produced_in_bin: 111,
+          total_metal_consumed_in_bin: 0,
+        },
+      ];
+
+      // --- CHART 4: HEATMAP ---
+      function createHeatmap(chartDom, data, teamId) {
+        const teamData = data.filter((d) => d.team_id === teamId);
+
+        const timeBins = [
+          ...new Set(data.map((d) => d.time_bin_start_frame)),
+        ].sort(d3.ascending);
+        const unitIds = [
+          ...new Set(teamData.map((d) => `Unit ${d.unit_def_id}`)),
+        ].sort();
+
+        const heatmapData = [];
+        let minVal = 0,
+          maxVal = 0;
+
+        teamData.forEach((d) => {
+          const netMetal =
+            d.total_metal_produced_in_bin - d.total_metal_consumed_in_bin;
+          const timeIndex = timeBins.indexOf(d.time_bin_start_frame);
+          const unitIndex = unitIds.indexOf(`Unit ${d.unit_def_id}`);
+          heatmapData.push([timeIndex, unitIndex, netMetal]);
+          if (netMetal < minVal) minVal = netMetal;
+          if (netMetal > maxVal) maxVal = netMetal;
+        });
+
+        const myChart = echarts.init(chartDom, "dark"); // Use 'dark' theme
+        const option = {
+          tooltip: {
+            position: "top",
+            formatter: (params) =>
+              `Time: ${timeBins[params.data[0]] / 30}min<br/>${
+                unitIds[params.data[1]]
+              }<br/>Net Metal: <strong>${params.data[2].toFixed(1)}</strong>`,
+          },
+          grid: { height: "80%", top: "5%", left: "10%", right: "5%" },
+          xAxis: {
+            type: "category",
+            data: timeBins.map((t) => `${t / 30} min`),
+            splitArea: { show: true },
+          },
+          yAxis: { type: "category", data: unitIds },
+          visualMap: {
+            min: minVal,
+            max: maxVal,
+            calculable: true,
+            orient: "horizontal",
+            left: "center",
+            bottom: "0%",
+            inRange: {
+              // Diverging color scale: Red -> White -> Blue
+              color: ["#b2182b", "#f7f7f7", "#2166ac"],
+            },
+          },
+          series: [
+            {
+              name: "Net Metal Contribution",
+              type: "heatmap",
+              data: heatmapData,
+              label: { show: false },
+              emphasis: {
+                itemStyle: {
+                  shadowBlur: 10,
+                  shadowColor: "rgba(255, 255, 255, 0.5)",
+                },
+              },
+            },
+          ],
+        };
+        myChart.setOption(option);
+      }
+
+      // --- CHART 5: SANKEY DIAGRAM ---
+      function createSankey(chartDom, data, teamId) {
+        const teamData = data.filter((d) => d.team_id === teamId);
+
+        const nodes = [{ name: `Team ${teamId} Economy` }];
+        const links = [];
+        const producers = new Map();
+        const consumers = new Map();
+
+        teamData.forEach((d) => {
+          if (d.total_metal_produced_in_bin > 0) {
+            const unitName = `Producer: Unit ${d.unit_def_id}`;
+            producers.set(
+              unitName,
+              (producers.get(unitName) || 0) + d.total_metal_produced_in_bin
+            );
+          }
+          if (d.total_metal_consumed_in_bin > 0) {
+            const unitName = `Consumer: Unit ${d.unit_def_id}`;
+            consumers.set(
+              unitName,
+              (consumers.get(unitName) || 0) + d.total_metal_consumed_in_bin
+            );
+          }
+        });
+
+        producers.forEach((value, name) => {
+          nodes.push({ name });
+          links.push({ source: name, target: `Team ${teamId} Economy`, value });
+        });
+        consumers.forEach((value, name) => {
+          nodes.push({ name });
+          links.push({ source: `Team ${teamId} Economy`, target: name, value });
+        });
+
+        const myChart = echarts.init(chartDom, "dark");
+        const option = {
+          tooltip: { trigger: "item", triggerOn: "mousemove" },
+          series: {
+            type: "sankey",
+            data: nodes,
+            links: links,
+            emphasis: { focus: "adjacency" },
+            lineStyle: { color: "gradient", curveness: 0.5 },
+            label: { color: "#fff" },
+          },
+        };
+        myChart.setOption(option);
+      }
+
+      // --- CHART 6: SMALL MULTIPLES ---
+      function createSmallMultiples(chartDom, data) {
+        const team0Data = data.filter((d) => d.team_id === 0);
+        const team1Data = data.filter((d) => d.team_id === 1);
+
+        function processTeamData(teamData) {
+          const timeBins = [
+            ...new Set(data.map((d) => d.time_bin_start_frame)),
+          ].sort(d3.ascending);
+          const unitIds = [...new Set(teamData.map((d) => d.unit_def_id))].sort(
+            d3.ascending
+          );
+
+          const series = unitIds.map((unitId) => {
+            return {
+              name: `Unit ${unitId}`,
+              type: "bar",
+              stack: "total", // This makes it a stacked bar chart
+              emphasis: { focus: "series" },
+              data: timeBins.map((time) => {
+                const entry = teamData.find(
+                  (d) =>
+                    d.time_bin_start_frame === time && d.unit_def_id === unitId
+                );
+                return entry ? entry.total_metal_produced_in_bin : 0;
+              }),
+            };
+          });
+          return { timeBins, series };
+        }
+
+        const processed0 = processTeamData(team0Data);
+        const processed1 = processTeamData(team1Data);
+
+        const myChart = echarts.init(chartDom, "dark");
+        const option = {
+          tooltip: { trigger: "axis", axisPointer: { type: "cross" } },
+          legend: { top: "0%", inactiveColor: "#777" },
+          grid: [
+            { left: 50, right: 50, top: "8%", height: "38%" }, // Grid for top chart
+            { left: 50, right: 50, top: "55%", height: "38%" }, // Grid for bottom chart
+          ],
+          xAxis: [
+            {
+              type: "category",
+              data: processed0.timeBins.map((t) => `${t / 30}min`),
+              gridIndex: 0,
+              axisLabel: { show: false },
+            },
+            {
+              type: "category",
+              data: processed1.timeBins.map((t) => `${t / 30}min`),
+              gridIndex: 1,
+            },
+          ],
+          yAxis: [
+            {
+              type: "value",
+              gridIndex: 0,
+              name: "Team 0 Prod.",
+              nameLocation: "middle",
+              nameGap: 30,
+            },
+            {
+              type: "value",
+              gridIndex: 1,
+              name: "Team 1 Prod.",
+              nameLocation: "middle",
+              nameGap: 30,
+            },
+          ],
+          series: [
+            ...processed0.series.map((s) => ({
+              ...s,
+              xAxisIndex: 0,
+              yAxisIndex: 0,
+            })),
+            ...processed1.series.map((s) => ({
+              ...s,
+              xAxisIndex: 1,
+              yAxisIndex: 1,
+            })),
+          ],
+        };
+        myChart.setOption(option);
+
+        // This is the magic that links the two charts' tooltips!
+        echarts.connect("small_multiples_group");
+        myChart.group = "small_multiples_group";
+      }
+
+      // --- INITIALIZE ALL CHARTS ---
+      createHeatmap(document.getElementById("chart4-container"), rawData, 0);
+      createSankey(document.getElementById("chart5-container"), rawData, 0);
+      createSmallMultiples(
+        document.getElementById("chart6-container"),
+        rawData
+      );
+    </script>
+  </body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3.js Foundational RTS Analysis</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 20px;
+            padding: 20px;
+        }
+        h1, h2 {
+            font-weight: 300;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+        h2 {
+            margin-top: 50px;
+        }
+        p.blurb {
+            line-height: 1.6;
+            max-width: 800px;
+            color: #b0b0b0;
+            margin-bottom: 25px;
+        }
+        .chart-container {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .tooltip {
+            position: absolute;
+            text-align: left;
+            padding: 8px;
+            font-size: 12px;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .axis-label { font-size: 12px; fill: #aaa; }
+        .tick line { stroke: #444; }
+        .domain { stroke: #888; }
+        .tick text { fill: #ccc; }
+        .legend-item { cursor: default; }
+        .legend-item text { fill: #ccc; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <h1>Foundational RTS Visualizations - D3.JS</h1>
+
+    <!-- CHART 1: MACRO OVERVIEW -->
+    <h2>Chart 1: Economic Pulse</h2>
+    <p class="blurb">
+      This is a <strong>Stacked Area Chart</strong> showing the net metal income
+      for each team over the course of the game. It is best for answering the
+      high-level question: "How does the overall economic power of teams compare
+      and shift over time?" <br /><br />
+      The "wiggle" layout emphasizes the changing proportion of economic power.
+      When a color expands, that team's relative economic strength is growing.
+    </p>
+      Economic Pulse (Stacked Area): Required time_bin_start_frame, team_id,
+      total_metal_produced_in_bin, and total_metal_consumed_in_bin to calculate
+      the net income per team over time.
+    <div id="chart1-container" class="chart-container"></div>
+
+    <!-- CHART 2: COMPOSITION DRILL-DOWN -->
+    <h2>Chart 2: Economic Composition</h2>
+    <p class="blurb">
+      This is a detailed <strong>Stacked Area Chart</strong> for a single team
+      (Team 0). It answers the question: "For this specific team, which units
+      are responsible for its economic output?" <br /><br />
+      Each colored layer represents the metal produced by a single unit type,
+      showing how the team's economic backbone is constructed. It's the ideal
+      way to perform a detailed "drill-down" analysis on a single entity.
+    </p>
+    Economic Composition (Stacked Area): Required time_bin_start_frame,
+    unit_def_id, and total_metal_produced_in_bin for a single, selected team.
+    <div id="chart2-container" class="chart-container"></div>
+
+    <!-- CHART 3: BUILD ORDER TIMELINE -->
+    <h2>Chart 3: Build Order Timeline</h2>
+    <p class="blurb">
+      This is a <strong>Timeline Event Chart</strong>, also known as a
+      "swimlane" chart. It provides the clearest possible answer to the
+      question: "What was the precise sequence and timing of a team's strategic
+      decisions?" <br /><br />
+      Each lane represents a unit type. A circle appears at the moment a unit is
+      produced, and its size corresponds to how many were produced in that time
+      window. This chart trades aggregated totals for a crystal-clear narrative
+      of events.
+    </p>
+    Build Order (Timeline): Required time_bin_start_frame, unit_def_id, and
+    total_units_produced_in_bin to plot discrete production events.
+    <div id="chart3-container" class="chart-container"></div>
+
+    <script>
+        // --- DATA ---
+        const rawData = [
+            { team_id: 0, unit_def_id: 49, time_bin_start_frame: 0, units_alive_in_bin: 1, total_unit_seconds_in_bin: 6.1667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 6.1667, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 77.0833, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 281, time_bin_start_frame: 0, units_alive_in_bin: 1, total_unit_seconds_in_bin: 6.3333, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 6.3333, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 79.1667, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 0, units_alive_in_bin: 1, total_unit_seconds_in_bin: 0.1667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 0.3, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 49, time_bin_start_frame: 300, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 32, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 142 },
+            { team_id: 0, unit_def_id: 140, time_bin_start_frame: 300, units_alive_in_bin: 1, total_unit_seconds_in_bin: 4.1667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 7.5, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 227, time_bin_start_frame: 300, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 41, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 281, time_bin_start_frame: 300, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 80, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 802 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 300, units_alive_in_bin: 2, total_unit_seconds_in_bin: 13.1667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 23.7, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 49, time_bin_start_frame: 600, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 83, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 833 },
+            { team_id: 0, unit_def_id: 140, time_bin_start_frame: 600, units_alive_in_bin: 3, total_unit_seconds_in_bin: 17.6667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 50.8, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 30 },
+            { team_id: 0, unit_def_id: 227, time_bin_start_frame: 600, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 84, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 281, time_bin_start_frame: 600, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 161, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 600, units_alive_in_bin: 2, total_unit_seconds_in_bin: 20, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 74, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 60 },
+            { team_id: 1, unit_def_id: 431, time_bin_start_frame: 600, units_alive_in_bin: 1, total_unit_seconds_in_bin: 2.1667, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 21.6667, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 49, time_bin_start_frame: 900, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 83, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 833 },
+            { team_id: 0, unit_def_id: 140, time_bin_start_frame: 900, units_alive_in_bin: 3, total_unit_seconds_in_bin: 30, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 92, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 60 },
+            { team_id: 0, unit_def_id: 227, time_bin_start_frame: 900, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 88, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 281, time_bin_start_frame: 900, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 900, units_alive_in_bin: 3, total_unit_seconds_in_bin: 24.1667, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 81.5, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 60 },
+            { team_id: 1, unit_def_id: 431, time_bin_start_frame: 900, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 200, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 140, time_bin_start_frame: 1200, units_alive_in_bin: 3, total_unit_seconds_in_bin: 30, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 111, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 90 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 1200, units_alive_in_bin: 3, total_unit_seconds_in_bin: 30, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 111, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 90 },
+        ];
+        
+        // --- UTILITY ---
+        const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+
+        // --- CHART 1 SCRIPT ---
+        function createEconomicPulseChart(data) {
+            const container = d3.select("#chart1-container");
+            const bounds = container.node().getBoundingClientRect();
+            const margin = {top: 20, right: 30, bottom: 40, left: 60};
+            const width = bounds.width - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
+
+            const svg = container.append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            const netMetalByTime = d3.rollup(data, v => d3.sum(v, d => d.total_metal_produced_in_bin - d.total_metal_consumed_in_bin), d => d.time_bin_start_frame, d => d.team_id);
+            const allTeamIds = [...new Set(data.map(d => d.team_id))].sort(d3.ascending);
+            
+            const reshapedData = Array.from(netMetalByTime.entries()).map(([time, teamMap]) => {
+                const obj = { time: +time };
+                allTeamIds.forEach(id => { obj[id] = teamMap.get(id) || 0; });
+                return obj;
+            }).sort((a,b) => a.time - b.time);
+
+            const stack = d3.stack().keys(allTeamIds).order(d3.stackOrderNone).offset(d3.stackOffsetWiggle);
+            const series = stack(reshapedData);
+
+            const x = d3.scaleLinear().domain(d3.extent(reshapedData, d => d.time)).range([0, width]);
+            const y = d3.scaleLinear().domain([d3.min(series, d => d3.min(d, d => d[0])), d3.max(series, d => d3.max(d, d => d[1]))]).range([height, 0]);
+            const color = d3.scaleOrdinal(d3.schemeTableau10).domain(allTeamIds);
+
+            const area = d3.area().x(d => x(d.data.time)).y0(d => y(d[0])).y1(d => y(d[1])).curve(d3.curveBasis);
+
+            svg.selectAll(".layer").data(series).join("path").attr("class", "layer").attr("d", area).attr("fill", d => color(d.key))
+                .on("mouseover", (event, d) => { tooltip.style("opacity", 1); d3.select(event.currentTarget).style("filter", "brightness(1.5)"); })
+                .on("mousemove", (event, d) => { tooltip.html(`Team ID: <strong>${d.key}</strong>`).style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 28) + "px"); })
+                .on("mouseout", (event, d) => { tooltip.style("opacity", 0); d3.select(event.currentTarget).style("filter", "brightness(1)"); });
+
+            svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(5).tickFormat(d => `${d/30} min`)).call(g => g.select(".domain").remove()).call(g => g.selectAll(".tick line").clone().attr("y2", -height).attr("stroke-opacity", 0.1));
+            svg.append("g").call(d3.axisLeft(y).ticks(5)).call(g => g.select(".domain").remove()).call(g => g.selectAll(".tick line").clone().attr("x2", width).attr("stroke-opacity", 0.1));
+            svg.append("text").attr("class", "axis-label").attr("x", width / 2).attr("y", height + margin.bottom - 5).attr("text-anchor", "middle").text("Game Time");
+            svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("y", -margin.left + 15).attr("x", -height / 2).attr("text-anchor", "middle").text("Net Metal Income (Stacked)");
+        }
+
+        // --- CHART 2 SCRIPT ---
+        function createCompositionChart(data, teamId) {
+            const container = d3.select("#chart2-container");
+            const bounds = container.node().getBoundingClientRect();
+            const margin = {top: 20, right: 120, bottom: 40, left: 60};
+            const width = bounds.width - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
+
+            const svg = container.append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            const teamData = data.filter(d => d.team_id === teamId);
+            const metalProdByTime = d3.rollup(teamData, v => d3.sum(v, d => d.total_metal_produced_in_bin), d => d.time_bin_start_frame, d => d.unit_def_id);
+            const allUnitIds = [...new Set(teamData.map(d => d.unit_def_id))].sort(d3.ascending);
+            
+            const reshapedData = Array.from(metalProdByTime.entries()).map(([time, unitMap]) => {
+                const obj = { time: +time };
+                allUnitIds.forEach(id => { obj[id] = unitMap.get(id) || 0; });
+                return obj;
+            }).sort((a,b) => a.time - b.time);
+
+            const stack = d3.stack().keys(allUnitIds).order(d3.stackOrderNone).offset(d3.stackOffsetNone);
+            const series = stack(reshapedData);
+
+            const x = d3.scaleLinear().domain(d3.extent(reshapedData, d => d.time)).range([0, width]);
+            const y = d3.scaleLinear().domain([0, d3.max(series, d => d3.max(d, d => d[1]))]).nice().range([height, 0]);
+            const color = d3.scaleOrdinal(d3.schemeCategory10).domain(allUnitIds);
+
+            const area = d3.area().x(d => x(d.data.time)).y0(d => y(d[0])).y1(d => y(d[1])).curve(d3.curveStepAfter);
+
+            svg.selectAll(".layer").data(series).join("path").attr("d", area).attr("fill", d => color(d.key));
+
+            svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(5).tickFormat(d => `${d/30} min`));
+            svg.append("g").call(d3.axisLeft(y));
+            svg.append("text").attr("class", "axis-label").attr("x", width / 2).attr("y", height + margin.bottom -5).attr("text-anchor", "middle").text("Game Time");
+            svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("y", -margin.left + 15).attr("x", -height / 2).attr("text-anchor", "middle").text("Total Metal Produced");
+            
+            const legend = svg.append("g").attr("transform", `translate(${width + 20}, 0)`);
+            legend.selectAll(".legend-item").data(allUnitIds).join("g").attr("class", "legend-item").attr("transform", (d, i) => `translate(0, ${i * 20})`).call(g => g.append("rect").attr("width", 15).attr("height", 15).attr("fill", color)).call(g => g.append("text").attr("x", 20).attr("y", 12).text(d => `Unit ${d}`));
+        }
+        
+        // --- CHART 3 SCRIPT ---
+        function createBuildOrderChart(data, teamId) {
+            const container = d3.select("#chart3-container");
+            const bounds = container.node().getBoundingClientRect();
+            const margin = {top: 20, right: 30, bottom: 40, left: 80};
+            const width = bounds.width - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
+
+            const svg = container.append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            const productionEvents = data.filter(d => d.team_id === teamId && d.total_units_produced_in_bin > 0);
+            const unitIds = [...new Set(productionEvents.map(d => d.unit_def_id))].sort(d3.ascending);
+
+            const x = d3.scaleLinear().domain([0, d3.max(data, d => d.time_bin_start_frame)]).range([0, width]);
+            const y = d3.scaleBand().domain(unitIds).range([0, height]).padding(0.1);
+            const size = d3.scaleSqrt().domain([1, d3.max(productionEvents, d => d.total_units_produced_in_bin)]).range([4, 15]);
+            const color = d3.scaleOrdinal(d3.schemeCategory10).domain(unitIds);
+
+            svg.selectAll("circle").data(productionEvents).join("circle").attr("cx", d => x(d.time_bin_start_frame)).attr("cy", d => y(d.unit_def_id) + y.bandwidth() / 2).attr("r", d => size(d.total_units_produced_in_bin)).attr("fill", d => color(d.unit_def_id)).attr("opacity", 0.8)
+                .on("mouseover", (event, d) => { tooltip.style("opacity", 1).html(`<strong>Unit ${d.unit_def_id}</strong><br/>Time: ${d.time_bin_start_frame / 30} min<br/>Produced: ${d.total_units_produced_in_bin}`); })
+                .on("mousemove", (event) => { tooltip.style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 28) + "px"); })
+                .on("mouseout", () => { tooltip.style("opacity", 0); });
+
+            svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(5).tickFormat(d => `${d/30} min`));
+            svg.append("g").call(d3.axisLeft(y).tickFormat(d => `Unit ${d}`)).call(g => g.select(".domain").remove());
+            svg.append("text").attr("class", "axis-label").attr("x", width / 2).attr("y", height + margin.bottom - 5).attr("text-anchor", "middle").text("Game Time");
+        }
+
+
+        // --- INITIALIZE CHARTS ---
+        createEconomicPulseChart(rawData);
+        createCompositionChart(rawData, 0);
+        createBuildOrderChart(rawData, 0);
+
+    </script>
+</body>
+</html>

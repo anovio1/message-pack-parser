@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Foundational RTS Analysis with ECharts</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #121212;
+        color: #e0e0e0;
+        margin: 20px;
+        padding: 20px;
+      }
+      h1, h2 {
+        font-weight: 300;
+        border-bottom: 1px solid #444;
+        padding-bottom: 10px;
+      }
+      h2 { margin-top: 50px; }
+      p.blurb {
+        line-height: 1.6;
+        max-width: 800px;
+        color: #b0b0b0;
+        margin-bottom: 25px;
+      }
+      .chart-container {
+        height: 500px;
+        background-color: #1e1e1e;
+        padding: 20px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Foundational RTS Visualizations (ECharts Version)</h1>
+
+    <!-- CHART 1: ECONOMIC PULSE -->
+    <h2>Chart 1: Economic Pulse</h2>
+    <p class="blurb">
+      This is a <strong>Stacked Area Chart</strong> showing the net metal income for each team. It answers: "How does the overall economic power of teams compare and shift over time?" This ECharts version clearly shows the positive and negative contributions of each team to the total economic activity.
+    </p>
+      Economic Pulse (Stacked Area): Required time_bin_start_frame, team_id,
+      total_metal_produced_in_bin, and total_metal_consumed_in_bin to calculate
+      the net income per team over time.
+    <div id="chart1-container" class="chart-container"></div>
+
+    <!-- CHART 2: ECONOMIC COMPOSITION -->
+    <h2>Chart 2: Economic Composition</h2>
+    <p class="blurb">
+      This is a detailed <strong>Stacked Bar Chart</strong> for a single team (Team 0). It answers: "For this specific team, which units are responsible for its economic output?" Each colored segment in a bar represents the metal produced by a single unit type within that time window.
+    </p>
+    Economic Composition (Stacked Area): Required time_bin_start_frame,
+    unit_def_id, and total_metal_produced_in_bin for a single, selected team.
+    <div id="chart2-container" class="chart-container"></div>
+    
+    <!-- CHART 3: BUILD ORDER TIMELINE -->
+    <h2>Chart 3: Build Order Timeline</h2>
+    <p class="blurb">
+      This is a <strong>Timeline Event Chart</strong> (a Scatter Plot on a categorical axis). It answers: "What was the precise sequence and timing of a team's strategic decisions?" Each circle represents a production event, with its size indicating how many units were made.
+    </p>
+    Build Order (Timeline): Required time_bin_start_frame, unit_def_id, and
+    total_units_produced_in_bin to plot discrete production events.
+    <div id="chart3-container" class="chart-container"></div>
+
+    <script>
+      // --- DATA (Same curated subset) ---
+        const rawData = [
+            { team_id: 0, unit_def_id: 49, time_bin_start_frame: 0, units_alive_in_bin: 1, total_unit_seconds_in_bin: 6.1667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 6.1667, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 77.0833, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 281, time_bin_start_frame: 0, units_alive_in_bin: 1, total_unit_seconds_in_bin: 6.3333, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 6.3333, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 79.1667, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 0, units_alive_in_bin: 1, total_unit_seconds_in_bin: 0.1667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 0.3, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 49, time_bin_start_frame: 300, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 32, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 142 },
+            { team_id: 0, unit_def_id: 140, time_bin_start_frame: 300, units_alive_in_bin: 1, total_unit_seconds_in_bin: 4.1667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 7.5, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 227, time_bin_start_frame: 300, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 41, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 281, time_bin_start_frame: 300, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 80, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 802 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 300, units_alive_in_bin: 2, total_unit_seconds_in_bin: 13.1667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 23.7, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 49, time_bin_start_frame: 600, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 83, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 833 },
+            { team_id: 0, unit_def_id: 140, time_bin_start_frame: 600, units_alive_in_bin: 3, total_unit_seconds_in_bin: 17.6667, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 50.8, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 30 },
+            { team_id: 0, unit_def_id: 227, time_bin_start_frame: 600, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 84, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 281, time_bin_start_frame: 600, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 161, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 600, units_alive_in_bin: 2, total_unit_seconds_in_bin: 20, total_units_produced_in_bin: 1, total_metal_produced_in_bin: 74, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 60 },
+            { team_id: 1, unit_def_id: 431, time_bin_start_frame: 600, units_alive_in_bin: 1, total_unit_seconds_in_bin: 2.1667, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 21.6667, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 49, time_bin_start_frame: 900, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 83, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 833 },
+            { team_id: 0, unit_def_id: 140, time_bin_start_frame: 900, units_alive_in_bin: 3, total_unit_seconds_in_bin: 30, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 92, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 60 },
+            { team_id: 0, unit_def_id: 227, time_bin_start_frame: 900, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 88, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 281, time_bin_start_frame: 900, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 20, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 250, total_energy_consumed_in_bin: 0 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 900, units_alive_in_bin: 3, total_unit_seconds_in_bin: 24.1667, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 81.5, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 60 },
+            { team_id: 1, unit_def_id: 431, time_bin_start_frame: 900, units_alive_in_bin: 1, total_unit_seconds_in_bin: 10, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 0, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 200, total_energy_consumed_in_bin: 0 },
+            { team_id: 0, unit_def_id: 140, time_bin_start_frame: 1200, units_alive_in_bin: 3, total_unit_seconds_in_bin: 30, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 111, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 90 },
+            { team_id: 1, unit_def_id: 370, time_bin_start_frame: 1200, units_alive_in_bin: 3, total_unit_seconds_in_bin: 30, total_units_produced_in_bin: 0, total_metal_produced_in_bin: 111, total_metal_consumed_in_bin: 0, total_energy_produced_in_bin: 0, total_energy_consumed_in_bin: 90 },
+        ];
+
+      // --- CHART 1: ECONOMIC PULSE ---
+      function createEconomicPulse(chartDom, data) {
+        const timeBins = [...new Set(data.map(d => d.time_bin_start_frame))].sort((a,b) => a - b);
+        const teamIds = [...new Set(data.map(d => d.team_id))].sort((a,b) => a - b);
+
+        const series = teamIds.map(teamId => {
+          return {
+            name: `Team ${teamId}`,
+            type: 'line',
+            stack: 'Total', // Stacking the series
+            areaStyle: {}, // This fills the area under the line
+            emphasis: { focus: 'series' },
+            data: timeBins.map(time => {
+              const teamDataForBin = data.filter(d => d.team_id === teamId && d.time_bin_start_frame === time);
+              const netMetal = teamDataForBin.reduce((sum, row) => sum + row.total_metal_produced_in_bin - row.total_metal_consumed_in_bin, 0);
+              return netMetal;
+            })
+          };
+        });
+
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+          legend: { data: series.map(s => s.name) },
+          xAxis: { type: 'category', boundaryGap: false, data: timeBins.map(t => `${t/30} min`) },
+          yAxis: { type: 'value', name: 'Net Metal Income' },
+          series: series
+        });
+      }
+
+      // --- CHART 2: ECONOMIC COMPOSITION ---
+      function createCompositionChart(chartDom, data, teamId) {
+        const teamData = data.filter(d => d.team_id === teamId);
+        const timeBins = [...new Set(teamData.map(d => d.time_bin_start_frame))].sort((a,b) => a - b);
+        const unitIds = [...new Set(teamData.map(d => d.unit_def_id))].sort((a,b) => a - b);
+
+        const series = unitIds.map(unitId => {
+          return {
+            name: `Unit ${unitId}`,
+            type: 'bar',
+            stack: 'Total', // Stacking the bars
+            emphasis: { focus: 'series' },
+            data: timeBins.map(time => {
+              const entry = teamData.find(d => d.time_bin_start_frame === time && d.unit_def_id === unitId);
+              return entry ? entry.total_metal_produced_in_bin : 0;
+            })
+          };
+        });
+
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+          legend: { data: series.map(s => s.name), type: 'scroll' },
+          xAxis: { type: 'category', data: timeBins.map(t => `${t/30} min`) },
+          yAxis: { type: 'value', name: 'Metal Produced' },
+          series: series
+        });
+      }
+
+      // --- CHART 3: BUILD ORDER TIMELINE ---
+      function createBuildOrderChart(chartDom, data, teamId) {
+        const productionEvents = data.filter(d => d.team_id === teamId && d.total_units_produced_in_bin > 0);
+        const unitIds = [...new Set(productionEvents.map(d => d.unit_def_id))].sort((a,b) => a - b);
+
+        // Data format for scatter plot: [x, y, size, ...]
+        const chartData = productionEvents.map(d => [
+          d.time_bin_start_frame,
+          d.unit_def_id,
+          d.total_units_produced_in_bin
+        ]);
+
+        const myChart = echarts.init(chartDom, 'dark');
+        myChart.setOption({
+          tooltip: {
+            formatter: params => `Unit ${params.value[1]} @ ${params.value[0]/30} min<br/>Produced: <strong>${params.value[2]}</strong>`
+          },
+          xAxis: { type: 'value', name: 'Game Time (frames)', min: 0 },
+          yAxis: { type: 'category', data: unitIds.map(id => `Unit ${id}`) },
+          series: [{
+            type: 'scatter',
+            symbolSize: params => Math.sqrt(params[2]) * 20, // Scale size by units produced
+            data: chartData
+          }]
+        });
+      }
+
+      // --- INITIALIZE ALL CHARTS ---
+      createEconomicPulse(document.getElementById('chart1-container'), rawData);
+      createCompositionChart(document.getElementById('chart2-container'), rawData, 0);
+      createBuildOrderChart(document.getElementById('chart3-container'), rawData, 0);
+
+    </script>
+  </body>
+</html>

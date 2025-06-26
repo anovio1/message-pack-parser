@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RTS Analysis - Final Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script>/* Theme toggler JS */(function(){const t=localStorage.getItem("theme"),e=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.setAttribute("data-theme",t||(e?"dark":"light"))})();</script>
+    <style>
+      /* All CSS is the same as your previous working version. Omitted for brevity. */
+      body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6;margin:0;background-color:#f8f9fa;color:#212529}.container{max-width:900px;margin:2rem auto;padding:2rem;background-color:#fff;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,.1)}h1,h2,h3{color:#343a40;border-bottom:1px solid #dee2e6;padding-bottom:.5rem;margin-top:2rem}.controls,.viz-controls{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}label{font-weight:700}select,button{padding:.5rem 1rem;border:1px solid #ced4da;border-radius:4px;font-size:1rem;cursor:pointer}button{background-color:#007bff;color:#fff;border-color:#007bff;transition:background-color .2s}button:hover{background-color:#0056b3}button[disabled]{opacity:.5}#status{font-style:italic;color:#6c757d;margin-bottom:1rem;white-space:pre-line;padding:1em;background-color:#e9ecef;border-radius:4px}pre{background-color:#e9ecef;padding:1rem;border-radius:4px;white-space:pre-wrap;word-wrap:break-word;max-height:400px;overflow-y:auto}table{border-collapse:collapse;width:100%;margin-top:1rem}th,td{border:1px solid #dee2e6;padding:8px;text-align:left}th{background-color:#f1f3f5}.hidden{display:none}#log-bins-button{font-size:.75em;padding:.25em;background:gray}#viz-buttons-container button{background-color:#28a745;border-color:#28a745;margin-right:10px;margin-bottom:10px}#viz-buttons-container button:hover{background-color:#218838}:root{--bg:#f8f9fa;--text:#212529;--container-bg:#fff;--header:#343a40;--border:#dee2e6;--control-bg:#e9ecef;--button-bg:#007bff;--button-text:#fff;--button-hover:#0056b3;--viz-button-bg:#28a745;--viz-button-hover:#218838}body{background-color:var(--bg);color:var(--text)}.container{background-color:var(--container-bg)}h1,h2,h3{color:var(--header);border-bottom-color:var(--border)}#status,pre,th{background-color:var(--control-bg)}select{background-color:var(--container-bg);border-color:var(--border);color:var(--text)}button{background-color:var(--button-bg);color:var(--button-text);border-color:var(--button-bg)}button:hover{background-color:var(--button-hover)}#viz-buttons-container button{background-color:var(--viz-button-bg);border-color:var(--viz-button-bg)}#viz-buttons-container button:hover{background-color:var(--viz-button-hover)}[data-theme=dark]{--bg:#121212;--text:#e0e0e0;--container-bg:#1e1e1e;--header:#fafafa;--border:#333;--control-bg:#2a2a2a;--button-bg:#3880ff;--button-hover:#1c54b2;--viz-button-bg:#229944;--viz-button-hover:#1a7733}
+    </style>
+  </head>
+  <body>
+    <!-- All HTML is unchanged from the previous version -->
+    <div class="container">
+      <h1>RTS Analysis - Final Architecture</h1>
+      <!-- ... Omitted unchanged HTML ... -->
+      <div id="visualization-sandbox" class="hidden">
+        <h2>Visualization Sandbox</h2>
+        <p>The following visualizations are possible with the currently loaded stream. Click one to generate.</p>
+        <div id="viz-buttons-container"></div>
+        <div id="sandbox-controls"></div>
+        <div id="sandbox-chart" style="width: 100%; height: 600px; margin-top: 20px;"></div>
+      </div>
+      <!-- ... -->
+    </div>
+
+    <script type="module">
+      import { Zstd } from "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm@2.23.0/dist/index.js";
+      import { decode } from "https://esm.sh/@msgpack/msgpack@3.1.2/es2022/msgpack.mjs";
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        
+        // --- GLOBAL STATE & SETUP ---
+        let sandboxChartInstance = null;
+        let lastStreamInfo = null;
+        let lastDataBlobs = null;
+        // ... all getElementById calls ...
+        const zstd = await Zstd.load();
+        // ...
+
+        // ====================================================================
+        // == LAYER 1: THE CORE DATA ACCESS ENGINE
+        // ====================================================================
+        
+        function getColumnAsTypedArray(blob, dtype) {
+            if (!blob) return null;
+            const buffer = blob.buffer.slice(blob.byteOffset, blob.byteOffset + blob.byteLength);
+            switch (dtype) {
+                case "UInt8": return new Uint8Array(buffer);
+                case "UInt16": return new Uint16Array(buffer);
+                case "UInt32": return new Uint32Array(buffer);
+                case "UInt64": return new BigUint64Array(buffer);
+                case "Int8": return new Int8Array(buffer);
+                case "Int16": return new Int16Array(buffer);
+                case "Int32": return new Int32Array(buffer);
+                case "Int64": return new BigInt64Array(buffer);
+                case "Float32": return new Float32Array(buffer);
+                case "Float64": return new Float64Array(buffer);
+                default: return null;
+            }
+        }
+
+        /** The generic, single-pass query engine */
+        function executeSinglePassQuery(dataBlobs, streamInfo, queryConfig) {
+            const requiredCols = queryConfig.getRequiredColumns();
+            const columnBuffers = {};
+            for (const colName of requiredCols) {
+                const colSchema = streamInfo.columns.find(c => c.name === colName);
+                if (colSchema) {
+                    columnBuffers[colName] = getColumnAsTypedArray(dataBlobs[colSchema.data_key], colSchema.dtype);
+                }
+            }
+
+            let accumulator = queryConfig.initialize();
+            
+            const rowProxy = {};
+            for (let i = 0; i < streamInfo.num_rows; i++) {
+                // Create a lightweight proxy for the current row
+                for (const colName of requiredCols) {
+                    if (columnBuffers[colName]) {
+                        let val = columnBuffers[colName][i];
+                        rowProxy[colName] = typeof val === 'bigint' ? Number(val) : val;
+                    }
+                }
+                accumulator = queryConfig.reducer(accumulator, rowProxy, i);
+            }
+
+            return queryConfig.finalize(accumulator);
+        }
+
+        // ====================================================================
+        // == LAYER 3: CHART-SPECIFIC SHAPERS
+        // ====================================================================
+        // These are pure functions that format the final aggregated data.
+
+        function shapeForSankey(accumulator) {
+            const { production, consumption } = accumulator;
+            const nodes = new Map();
+            const links = [];
+            production.forEach((value, key) => {
+                const [teamId, unitId] = key.split('|');
+                const sourceName = `Unit ${unitId}`;
+                const targetName = `Team ${teamId}`;
+                nodes.set(sourceName, true);
+                nodes.set(targetName, true);
+                links.push({ source: sourceName, target: targetName, value });
+            });
+            consumption.forEach((value, key) => {
+                const [teamId, unitId] = key.split('|');
+                const sourceName = `Team ${teamId}`;
+                const targetName = `Unit ${unitId} (Consumed)`;
+                nodes.set(sourceName, true);
+                nodes.set(targetName, true);
+                links.push({ source: sourceName, target: targetName, value });
+            });
+            return { nodes: Array.from(nodes.keys()).map(name => ({ name })), links };
+        }
+
+        // ====================================================================
+        // == THE VISUALIZATION REGISTRY (using the new architecture)
+        // ====================================================================
+        
+        const VIZ_REGISTRY = [
+          {
+            name: "Flexible Chart Builder",
+            check: (columns) => columns.some(c => c.dtype.includes('Int') || c.dtype.includes('Float')),
+            render: (chartInstance, controlsContainer) => {
+              // This visualization is highly configurable, so it builds its own UI
+              // and uses the `hydrateRows` utility for simplicity, as it needs to be very generic.
+              // This is a valid trade-off: maximum flexibility for a slight performance hit.
+              const allCols = lastStreamInfo.columns.map(c => c.name);
+              const numericCols = lastStreamInfo.columns.filter(c => c.dtype.includes('Int') || c.dtype.includes('Float')).map(c => c.name);
+              const controlsHtml = `...`; // The complex UI for this chart
+              controlsContainer.innerHTML = controlsHtml;
+              // ... The event handlers for this chart would call a `hydrateRows` function and then shape the data.
+              controlsContainer.innerHTML = `<p><em>Note: The full UI for this generic builder is complex. This demonstrates where it would go. The other charts below use the more performant single-pass engine.</em></p>`;
+            }
+          },
+          {
+            name: "Sankey Diagram (Economic Flow)",
+            config: {
+              getRequiredColumns: () => ['team_id', 'unit_def_id', 'total_metal_produced_in_bin', 'total_metal_consumed_in_bin'],
+              initialize: () => ({
+                production: new Map(),
+                consumption: new Map()
+              }),
+              reducer: (acc, row) => {
+                const key = `${row.team_id}|${row.unit_def_id}`;
+                if (row.total_metal_produced_in_bin > 0) {
+                  acc.production.set(key, (acc.production.get(key) || 0) + row.total_metal_produced_in_bin);
+                }
+                if (row.total_metal_consumed_in_bin > 0) {
+                  acc.consumption.set(key, (acc.consumption.get(key) || 0) + row.total_metal_consumed_in_bin);
+                }
+                return acc;
+              },
+              finalize: (acc) => {
+                const { nodes, links } = shapeForSankey(acc);
+                return {
+                  tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+                  series: [{ type: 'sankey', data: nodes, links: links, emphasis: { focus: 'adjacency' } }]
+                };
+              }
+            }
+          },
+          {
+            name: "Unit Contribution Heatmap",
+            config: {
+              getRequiredColumns: () => ['time_bin_start_frame', 'unit_def_id', 'total_metal_produced_in_bin', 'total_metal_consumed_in_bin'],
+              initialize: () => ({
+                dataMap: new Map(),
+                timeAxis: new Set(),
+                unitAxis: new Set(),
+                minVal: 0,
+                maxVal: 0
+              }),
+              reducer: (acc, row) => {
+                const netValue = row.total_metal_produced_in_bin - row.total_metal_consumed_in_bin;
+                if (netValue === 0) return acc; // Optimization: ignore zero-value cells
+
+                const key = `${row.time_bin_start_frame}|${row.unit_def_id}`;
+                acc.dataMap.set(key, netValue);
+                acc.timeAxis.add(row.time_bin_start_frame);
+                acc.unitAxis.add(row.unit_def_id);
+                if (netValue < acc.minVal) acc.minVal = netValue;
+                if (netValue > acc.maxVal) acc.maxVal = netValue;
+                return acc;
+              },
+              finalize: (acc) => {
+                const timeLabels = [...acc.timeAxis].sort((a,b) => a - b);
+                const unitLabels = [...acc.unitAxis].sort((a,b) => a - b);
+                const heatmapData = [];
+                acc.dataMap.forEach((value, key) => {
+                  const [time, unit] = key.split('|');
+                  heatmapData.push([timeLabels.indexOf(Number(time)), unitLabels.indexOf(Number(unit)), value]);
+                });
+                return {
+                  tooltip: { position: 'top' },
+                  grid: { height: '75%', top: '10%' },
+                  xAxis: { type: 'category', data: timeLabels.map(String) },
+                  yAxis: { type: 'category', data: unitLabels.map(id => `Unit ${id}`) },
+                  visualMap: { min: acc.minVal, max: acc.maxVal, calculable: true, orient: 'horizontal', left: 'center', bottom: '0%', inRange: { color: ['#d73027', '#ffffbf', '#1a9850'] } },
+                  series: [{ type: 'heatmap', data: heatmapData }]
+                };
+              }
+            }
+          }
+        ];
+
+        // --- UI & APPLICATION LOGIC ---
+        
+        function setupSandbox(streamInfo, dataBlobs) {
+            const sandbox = document.getElementById("visualization-sandbox");
+            const btnContainer = document.getElementById("viz-buttons-container");
+            const controlsContainer = document.getElementById("sandbox-controls");
+            const sandboxChartEl = document.getElementById("sandbox-chart");
+            
+            btnContainer.innerHTML = '';
+            controlsContainer.innerHTML = '';
+            if (sandboxChartInstance) sandboxChartInstance.dispose();
+            
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            sandboxChartInstance = echarts.init(sandboxChartEl, currentTheme);
+            window.addEventListener('resize', () => sandboxChartInstance.resize());
+
+            VIZ_REGISTRY.forEach(viz => {
+                if (viz.check && viz.check(streamInfo.columns)) {
+                    // Handle flexible builders that create their own UI
+                    const btn = document.createElement('button');
+                    btn.textContent = viz.name;
+                    btn.onclick = () => viz.render(sandboxChartInstance, controlsContainer);
+                    btnContainer.appendChild(btn);
+                } else if (viz.config) {
+                    // Handle single-pass query configs
+                    const btn = document.createElement('button');
+                    btn.textContent = viz.name;
+                    btn.onclick = () => {
+                        controlsContainer.innerHTML = ''; // Clear controls for simple charts
+                        const chartOptions = executeSinglePassQuery(dataBlobs, streamInfo, viz.config);
+                        sandboxChartInstance.setOption(chartOptions, true);
+                    };
+                    btnContainer.appendChild(btn);
+                }
+            });
+            
+            if (btnContainer.children.length > 0) {
+                sandbox.classList.remove("hidden");
+                btnContainer.children[0].click();
+            } else {
+                sandbox.classList.add("hidden");
+            }
+        }
+
+        function parseSelectedStream() {
+            const selectedStreamName = streamSelect.value;
+            // ... parsing logic to get streamInfo and dataBlobs ...
+            const streamInfo = artifact.schema.streams[selectedStreamName];
+            const dataBlobs = artifact.data[selectedStreamName];
+            
+            lastStreamInfo = streamInfo;
+            lastDataBlobs = dataBlobs;
+            
+            // ... render table, etc. ...
+            setupSandbox(streamInfo, dataBlobs);
+        }
+
+        // ... All other functions (initial loading, renderTable, etc.)
+        // would be here, unchanged from your working version.
+      });
+    </script>
+  </body>
+</html>
