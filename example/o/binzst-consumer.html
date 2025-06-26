@@ -961,7 +961,7 @@ Calculating...</pre
 
           // Handle game_meta.json
           if (schema.static_assets.includes("game_meta")) {
-            const meta_blob = data.game_meta;
+            const meta_blob = data.game_meta.default;
             if (meta_blob) {
               try {
                 const meta_string = new TextDecoder().decode(meta_blob);
@@ -980,7 +980,7 @@ Calculating...</pre
 
           // Handle defs_map
           if (schema.static_assets.includes("defs_map")) {
-            const defs_blob = data.defs_map;
+            const defs_blob = data.defs_map.default;
             if (defs_blob) {
               try {
                 // The defs_map is a nested MessagePack object
