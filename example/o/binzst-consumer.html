@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hybrid MPK+ZST Artifact Consumer</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script>
       (function () {
         const saved = localStorage.getItem("theme");
@@ -12,6 +13,10 @@
         ).matches;
         const theme = saved || (prefersDark ? "dark" : "light");
         document.documentElement.setAttribute("data-theme", theme);
+
+        const viewModeSaved = localStorage.getItem("viewMode");
+        const viewModeValue = viewModeSaved || "comfort";
+        document.documentElement.setAttribute("data-viewmode", viewModeValue);
       })();
     </script>
     <style>
@@ -24,20 +29,55 @@
         color: #212529;
       }
       .container {
-        max-width: 900px;
+        max-width: var(--vm-container-maxwidth);
         margin: 2rem auto;
-        padding: 2rem;
+        padding: var(--vm-container-padding);
         background-color: #ffffff;
         border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
+
+      .grid-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        gap: 0 1em;
+        margin-top: 0.5em;
+
+        grid-template-areas:
+          "a b"
+          "c b"
+          ". b"
+          ". b";
+
+        > div {
+          width: 100%;
+          overflow: hidden;
+        }
+
+        > div#detailed-byte-breakdown {
+          grid-area: a;
+        }
+        > div#static-assets-section {
+          grid-area: b;
+        }
+        > div#stream-info-section {
+          grid-area: c;
+        }
+      }
+
+      h1 {
+        line-height: 1.05em;
+      }
+
       h1,
       h2,
       h3 {
         color: #343a40;
         border-bottom: 1px solid #dee2e6;
-        padding-bottom: 0.5rem;
-        margin-top: 2rem;
+        padding-bottom: var(--vm-heading-padding-bottom);
+        margin-top: var(--vm-heading-margin-top);
+        margin-bottom: var(--vm-heading-margin-bottom);
       }
       .controls {
         display: flex;
@@ -45,6 +85,11 @@
         gap: 1rem;
         margin-bottom: 1.5rem;
         flex-wrap: wrap;
+        position: sticky;
+        top: 0em;
+        padding: 0.5em 0.5em;
+        background-color: var(--container-bg);
+        z-index: 1000;
       }
       label {
         font-weight: bold;
@@ -86,6 +131,7 @@
         word-wrap: break-word;
         max-height: 400px;
         overflow-y: auto;
+        margin: var(--vm-pre-margin);
       }
       table {
         border-collapse: collapse;
@@ -109,9 +155,170 @@
         padding: 0.25em;
         background: gray;
       }
+      .viz-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+      }
+      #viz-buttons-container button {
+        background-color: #28a745;
+        border-color: #28a745;
+        margin-right: 10px;
+        margin-bottom: 10px;
+      }
+      #viz-buttons-container button:hover {
+        background-color: #218838;
+      }
+      @keyframes bounceArrow {
+        0% {
+          transform: translateY(50%);
+        }
+        50% {
+          transform: translateY(30%);
+        }
+        100% {
+          transform: translateY(50%);
+        }
+      }
+        @keyframes glowPulse {
+        0% {
+            filter: brightness(1)
+                    drop-shadow(0 0 0px #44f9ff80)
+                    drop-shadow(0 0 10px #44f9ff80);
+            /* Slightly transparent blue glow */
+        }
+        100% {
+            filter: brightness(2.5)
+                    drop-shadow(0 0 6px #44f9ff)
+                    drop-shadow(0 0 35px #44f9ff);
+            /* More intense glow */
+        }
+        }
+      .accordion {
+        cursor: pointer;
+        padding: 0.5rem 0.5rem;
+        margin: 0.5rem 0;
+        background-color: var(--container-bg);
+        border: none;
+        border-radius: 5px;
+        text-align: left;
+        outline: none;
+        font-size: 1.1rem;
+        transition: background-color 0.3s;
+        width: 100%;
+        position: relative;
+
+        h3 {
+          margin: 0;
+          border: none;
+          padding: 0;
+        }
+
+        ::after {
+          content: "▼";
+          display: inline;
+          margin-left: 0.25rem;
+          font-size: 0.75rem;
+          transition: transform 0.3s;
+          position: absolute;
+          bottom: 50%;
+          transform: translateY(50%);
+        }
+
+        border-left: 3px solid var(--button-bg);
+      }
+      .accordion.animate *::after {
+        animation: bounceArrow 1s ease infinite alternate, glowPulse 0.5s infinite alternate;
+        will-change: filter, transform;
+      }
+      .accordion:hover {
+        background-color: var(--control-hover);
+      }
+      .accordion.active {
+        background-color: var(--control-bg);
+        color: var(--button-text);
+
+        ::after {
+          content: "▲";
+        }
+      }
+      .panel {
+        padding: 0 1rem;
+        max-height: 0;
+        transition: max-height 0.3s ease-out;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        border-radius: 0 0 5px 5px;
+      }
+      .panel--preview {
+        max-height: calc(4 * 1.6rem);
+      }
+      .panel--preview-8 {
+        max-height: calc(8 * 1.6rem);
+      }
+      .fnt-sml {
+        font-size: 0.85rem;
+        padding: 0.5rem;
+      }
+      * {
+        scrollbar-width: medium;
+        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+      }
+
+      /* For WebKit browsers (Chrome, Edge, Safari) */
+      *::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      *::-webkit-scrollbar-thumb {
+        background-color: var(--scroll-thumb);
+        border-radius: 4px;
+      }
+      *::-webkit-scrollbar-track {
+        background-color: var(--scroll-track);
+      }
+      .false {
+        border: none;
+      }
+      .mw-64em.mw-64em {
+        max-width: 64em;
+      }
+      .m-ha {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .oh {
+        overflow: hidden;
+      }
     </style>
 
     <style>
+      /* User Settings */
+      /*  1. View Mode */
+      /*  2. Dark Mode */
+
+      /* 1. View Mode */
+      [data-viewmode="comfort"] {
+        --vm-container-padding: 2rem;
+        --vm-container-maxwidth: 64em;
+        --vm-heading-padding-bottom: 0.5rem;
+        --vm-heading-margin-top: 2rem;
+        --vm-heading-margin-bottom: 0.8rem;
+        --vm-pre-margin: 1em;
+      }
+      [data-viewmode="detailed"] {
+        --vm-container-padding: 1.5rem;
+        --vm-container-maxwidth: 96em;
+        --vm-heading-padding-bottom: 0.1rem;
+        --vm-heading-margin-top: 0.2rem;
+        --vm-heading-margin-bottom: 0.2rem;
+        --vm-pre-margin: 0.25em;
+      }
+
+      /* 2. Dark Mode */
       /* 1) Define all your colors as CSS variables */
       :root {
         --bg: #f8f9fa;
@@ -123,6 +330,8 @@
         --button-bg: #007bff;
         --button-text: white;
         --button-hover: #0056b3;
+        --scroll-thumb: #aaa;
+        --scroll-track: #eee;
       }
       /* 2) Override your existing rules to use those vars */
       body {
@@ -164,40 +373,44 @@
         --header: #fafafa;
         --border: #333;
         --control-bg: #2a2a2a;
+        --control-hover: #4b4b4b;
         --button-bg: #3880ff;
         --button-text: white;
         --button-hover: #1c54b2;
+        --scroll-thumb: #666;
+        --scroll-track: #333;
       }
     </style>
   </head>
   <body>
-    <div>
-      <button
-        id="theme-toggle"
-        style="position: fixed; top: 1rem; right: 1rem; z-index: 1000"
-      >
-        Toggle Dark Mode
+    <div style="position: fixed; top: 1rem; right: 1rem; z-index: 500">
+      <button id="view-mode-toggle" class="fnt-sml">Detailed</button>
+      <button id="toggle-all-button" class="fnt-sml">
+        Expand All Accordions
       </button>
+      <button id="theme-toggle" class="fnt-sml">Dark Mode</button>
     </div>
     <div class="container">
       <h1>Hybrid MPK+ZST Artifact Viewer</h1>
-      <div class="controls">
+      <div class="controls mw-64em m-ha">
         <label for="stream-select">Select Data Stream:</label>
         <select id="stream-select" disabled></select>
         <button id="load-button" disabled>Load and Parse Stream</button>
         <button id="log-bins-button" disabled>Log Actual Bin Sizes</button>
       </div>
-      <div id="status">Loading... Please wait.</div>
-      <h2>Bundle Byte Size Breakdown</h2>
-      <div
-        id="byte-size-bar-container"
-        style="
-          border: 1px solid #ccc;
-          height: 30px;
-          display: flex;
-          cursor: default;
-        "
-      ></div>
+      <div id="status" class="mw-64em m-ha">Loading... Please wait.</div>
+      <div class="mw-64em m-ha">
+        <h2>Bundle Byte Size Breakdown</h2>
+        <div
+          id="byte-size-bar-container"
+          style="
+            border: 1px solid #ccc;
+            height: 30px;
+            display: flex;
+            cursor: default;
+          "
+        ></div>
+      </div>
       <div
         id="byte-size-bar-tooltip"
         style="
@@ -213,28 +426,59 @@
           z-index: 1000;
         "
       ></div>
-      <div id="detailed-byte-breakdown">
-        <h3>Detailed Unpacked Size Analysis</h3>
-        <pre id="detailed-breakdown-output">Calculating...</pre>
-      </div>
-      <div id="static-assets-section" class="hidden">
-        <h2>Static Assets</h2>
-        <div id="game-meta-container" class="hidden">
-          <h3>Game Meta</h3>
-          <pre id="game-meta-output"></pre>
+      <div class="grid-container">
+        <div id="detailed-byte-breakdown">
+          <h2 class="false">&nbsp;</h2>
+          <button class="accordion">
+            <h3>Detailed Unpacked Size Analysis</h3>
+          </button>
+          <pre id="detailed-breakdown-output" class="panel panel--preview">
+Calculating...</pre
+          >
         </div>
-        <div id="defs-map-container" class="hidden">
-          <h3>Definitions Map</h3>
-          <pre id="defs-map-output"></pre>
+        <div id="static-assets-section" class="hidden">
+          <h2>Static Assets</h2>
+          <div id="game-meta-container" class="hidden">
+            <button class="accordion"><h3>Game Meta</h3></button>
+            <pre id="game-meta-output" class="panel panel--preview"></pre>
+          </div>
+          <div id="defs-map-container" class="hidden">
+            <button class="accordion"><h3>Definitions Map</h3></button>
+            <pre id="defs-map-output" class="panel panel--preview"></pre>
+          </div>
+        </div>
+        <div id="stream-info-section" class="hidden">
+          <button class="accordion"><h3>Selected Stream Schema</h3></button>
+          <pre id="stream-schema-output" class="panel panel--preview"></pre>
         </div>
       </div>
-      <div id="stream-info-section" class="hidden">
-        <h3>Selected Stream Schema</h3>
-        <pre id="stream-schema-output"></pre>
-      </div>
-      <h2>Parsed Data</h2>
+    <div>
+
+    <button class="accordion"><h2>Parsed Data</h3></button>
       <button id="show-unit-names-button" disabled>Show Unit Names</button>
-      <div id="parsed-data-output"><em>No data loaded yet.</em></div>
+      <div id="parsed-data-output" class="panel panel--preview-8 oh"><em>No data loaded yet.</em></div>
+      <div
+        id="visualization-sandbox"
+        class="hidden"
+        style="width: 100%; display: flex; flex-direction: column"
+      >
+        <div class="container">
+          <!-- Add a nested container for the header and controls -->
+          <h2>Visualization Sandbox</h2>
+          <p>
+            The following visualizations are possible with the currently loaded
+            stream. Click one to generate.
+          </p>
+          <div id="viz-buttons-container"></div>
+          <div id="sandbox-controls"></div>
+        </div>
+        <!-- The chart div itself remains outside the nested container to allow it to be full width -->
+        <div
+          id="sandbox-chart"
+          style="display: flex; width: 100%; height: 600px; margin-top: 20px"
+        ></div>
+      </div>
+    </div>
       <h2>Full Artifact Schema</h2>
       <pre id="full-schema-output">Loading...</pre>
     </div>
@@ -242,6 +486,11 @@
     <script type="module">
       import { Zstd } from "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm@2.23.0/dist/index.js";
       import { decode } from "https://esm.sh/@msgpack/msgpack@3.1.2/es2022/msgpack.mjs";
+
+      const NUM_ROWS_TO_SHOW = 50;
+      let sandboxChartInstance = null;
+      let lastColumns = null;
+      let VIZ_REGISTRY;
 
       document.addEventListener("DOMContentLoaded", async () => {
         const zstd = await Zstd.load();
@@ -276,10 +525,278 @@
         const REPLAY_ID = "test_replay_id";
         const ARTIFACT_PATH = `./${REPLAY_ID}.mpk.zst`;
 
+        VIZ_REGISTRY = [
+          {
+            name: "Flexible Chart Builder",
+            check: (columns) => {
+              // This check remains the same
+              return (
+                columns.some(
+                  (c) => c.dtype.includes("Int") || c.dtype.includes("Float")
+                ) && columns.length >= 2
+              );
+            },
+            render: (data, chartInstance, controlsContainer) => {
+              const allDims = lastColumns.map((c) => c.name);
+              const numericMetrics = lastColumns
+                .filter(
+                  (c) => c.dtype.includes("Int") || c.dtype.includes("Float")
+                )
+                .map((c) => c.name);
+              const controlsHtml = `
+              <div class="viz-controls">
+                  <div><label>Dimension (X-Axis):</label><br/><select id="ctrl-dim">${allDims
+                    .map((c) => `<option value="${c}">${c}</option>`)
+                    .join("")}</select></div>
+                  <div><label>Metric (Y-Axis):</label><br/><select id="ctrl-metric">${numericMetrics
+                    .map((c) => `<option value="${c}">${c}</option>`)
+                    .join("")}</select></div>
+                  <div><label>Group By (Optional):</label><br/><select id="ctrl-group"><option value="">-- None --</option>${allDims
+                    .map((c) => `<option value="${c}">${c}</option>`)
+                    .join("")}</select></div>
+                  <button id="ctrl-render">Render</button>
+              </div>`;
+
+              controlsContainer.innerHTML = controlsHtml; // Render controls
+
+              document.getElementById("ctrl-render").onclick = () => {
+                const dimCol = document.getElementById("ctrl-dim").value;
+                const metricCol = document.getElementById("ctrl-metric").value;
+                const groupCol = document.getElementById("ctrl-group").value;
+
+                // --- ROBUST AGGREGATION LOGIC (THE FIX) ---
+
+                const aggregatedData = new Map(); // Key: dimension value, Value: { group1: metric, group2: metric }
+                const allGroups = new Set();
+
+                data.forEach((row) => {
+                  const dimValue = row[dimCol];
+                  const metricValue = Number(row[metricCol] || 0);
+                  const groupValue = groupCol ? row[groupCol] : "default";
+
+                  allGroups.add(groupValue);
+
+                  if (!aggregatedData.has(dimValue)) {
+                    aggregatedData.set(dimValue, {});
+                  }
+                  const dimEntry = aggregatedData.get(dimValue);
+                  dimEntry[groupValue] =
+                    (dimEntry[groupValue] || 0) + metricValue;
+                });
+
+                // Prepare sorted dimensions (x-axis) and groups (series)
+                const sortedDimensions = [...aggregatedData.keys()].sort(
+                  (a, b) => {
+                    if (a < b) return -1;
+                    if (a > b) return 1;
+                    return 0;
+                  }
+                );
+                const sortedGroups = [...allGroups].sort();
+
+                const isTimeSeries = lastColumns
+                  .find((c) => c.name === dimCol)
+                  .dtype.includes("Int");
+
+                // Build the series array, feeding each series its own specific data.
+                const series = sortedGroups.map((group) => {
+                  return {
+                    name: String(group),
+                    type: isTimeSeries ? "line" : "bar",
+                    stack: isTimeSeries || !groupCol ? null : "total",
+                    smooth: true,
+                    data: sortedDimensions.map((dim) => {
+                      const value = aggregatedData.get(dim)?.[group] || null; // Use null for missing data points
+                      return value;
+                    }),
+                  };
+                });
+
+                chartInstance.setOption(
+                  {
+                    // NO LONGER using `dataset`. We provide data directly to the series.
+                    tooltip: { trigger: "axis" },
+                    legend: { type: "scroll", show: !!groupCol },
+                    xAxis: {
+                      type: "category",
+                      name: dimCol,
+                      data: sortedDimensions.map(String),
+                    },
+                    yAxis: { type: "value", name: metricCol },
+                    series: series,
+                  },
+                  true
+                );
+              };
+
+              // Auto-click the render button for a default view
+              document.getElementById("ctrl-render").click();
+            },
+          },
+            {
+                name: "Sankey Diagram (Interactive)",
+                check: (columns) => {
+                    const colNames = columns.map((c) => c.name);
+                    return [
+                        "team_id",
+                        "unit_def_id",
+                        "total_metal_produced_in_bin",
+                        "total_metal_consumed_in_bin",
+                    ].every((c) => colNames.includes(c));
+                },
+                render: async (data, chartInstance, controlsContainer) => {
+                    
+                    // This helper function will be used after the main data processing is complete.
+                    // It simplifies a large Sankey graph by grouping insignificant nodes.
+                    const aggregateSankeyData = (fullData, topN) => {
+                        const { links, nodeFlows } = fullData;
+
+                        // 1. Identify the most significant nodes by their total flow.
+                        const sortedNodes = Array.from(nodeFlows.entries())
+                            .sort((a, b) => b[1] - a[1]);
+                        
+                        const significantNodes = new Set(sortedNodes.slice(0, topN).map(entry => entry[0]));
+
+                        // 2. Create the simplified graph structure.
+                        const finalLinks = new Map(); // Use a map to aggregate links between the same nodes.
+
+                        const getFinalNodeName = (originalName) => {
+                            // Always keep teams as individual nodes.
+                            if (originalName.startsWith("Team")) {
+                                return originalName;
+                            }
+                            // Check if the node is in our "Top N" list.
+                            if (significantNodes.has(originalName)) {
+                                return originalName;
+                            }
+                            // Otherwise, group it into a generic "Other" category.
+                            if (originalName.startsWith("Producer:")) return "Other Producers";
+                            if (originalName.startsWith("Consumer:")) return "Other Consumers";
+                            return "Other";
+                        };
+
+                        // 3. Process all original links and aggregate them into the new, simplified structure.
+                        for (const link of links) {
+                            const source = getFinalNodeName(link.source);
+                            const target = getFinalNodeName(link.target);
+
+                            // Avoid self-loops (e.g., from "Other Producers" to "Other Producers").
+                            if (source === target) continue;
+
+                            const linkKey = `${source}|${target}`;
+                            const existingLink = finalLinks.get(linkKey) || { source, target, value: 0 };
+                            existingLink.value += link.value;
+                            finalLinks.set(linkKey, existingLink);
+                        }
+                        
+                        // 4. Collect all unique nodes that appear in our final, aggregated links.
+                        const finalNodeSet = new Set();
+                        finalLinks.forEach(link => {
+                            finalNodeSet.add(link.source);
+                            finalNodeSet.add(link.target);
+                        });
+
+                        return {
+                            nodes: Array.from(finalNodeSet).map(name => ({ name })),
+                            links: Array.from(finalLinks.values()),
+                        };
+                    };
+
+                    // --- STAGE 1: Calculate the full data model (non-blocking) ---
+                    chartInstance.showLoading({
+                        text: 'Calculating full data model...',
+                        color: '#3880ff',
+                        textColor: '#e0e0e0',
+                        maskColor: 'rgba(30, 30, 30, 0.3)',
+                    });
+                    
+                    const sankeyChunkProcessor = (chunk, accumulator) => {
+                        chunk.forEach((row) => {
+                            const teamName = `Team ${row.team_id}`;
+                            const producerName = `Producer: Unit ${row.unit_def_id}`;
+                            const consumerName = `Consumer: Unit ${row.unit_def_id}`;
+
+                            const produced = Number(row.total_metal_produced_in_bin);
+                            const consumed = Number(row.total_metal_consumed_in_bin);
+
+                            const updateTotalFlow = (node, value) => {
+                                accumulator.nodeFlows.set(node, (accumulator.nodeFlows.get(node) || 0) + value);
+                            };
+
+                            if (produced > 0) {
+                                accumulator.links.push({ source: producerName, target: teamName, value: produced });
+                                updateTotalFlow(producerName, produced);
+                                updateTotalFlow(teamName, produced);
+                            }
+                            if (consumed > 0) {
+                                accumulator.links.push({ source: teamName, target: consumerName, value: consumed });
+                                updateTotalFlow(teamName, consumed);
+                                updateTotalFlow(consumerName, consumed);
+                            }
+                        });
+                        return accumulator;
+                    };
+                    
+                    const initialState = { links: [], nodeFlows: new Map() };
+                    const fullResult = await processDataInChunksAsync(data, sankeyChunkProcessor, initialState);
+                    
+                    chartInstance.hideLoading();
+
+                    // --- STAGE 2: Setup interactive controls ---
+                    controlsContainer.innerHTML = `
+                        <div style="padding: 10px 0; display: flex; align-items: center; gap: 10px;">
+                            <label for="sankey-detail-slider">Detail Level (Top N Nodes):</label>
+                            <input type="range" id="sankey-detail-slider" min="10" max="200" value="50" step="10" style="vertical-align: middle; flex-grow: 1;">
+                            <span id="sankey-detail-label" style="font-weight: bold; font-family: monospace; display: inline-block; width: 3em; text-align: right;">50</span>
+                        </div>
+                    `;
+                    
+                    const slider = document.getElementById('sankey-detail-slider');
+                    const label = document.getElementById('sankey-detail-label');
+
+                    // --- STAGE 3: The re-rendering function that uses the slider's value ---
+                    const updateChart = () => {
+                        const topN = parseInt(slider.value, 10);
+                        label.textContent = topN;
+                        
+                        // This aggregation is now a very fast, synchronous operation.
+                        const simplifiedGraph = aggregateSankeyData(fullResult, topN);
+
+                        chartInstance.setOption({
+                            tooltip: {
+                                trigger: "item",
+                                triggerOn: "mousemove"
+                            },
+                            series: [{
+                                type: "sankey",
+                                data: simplifiedGraph.nodes,
+                                links: simplifiedGraph.links,
+                                emphasis: {
+                                    focus: "adjacency"
+                                },
+                                lineStyle: {
+                                    color: "gradient",
+                                    curveness: 0.5
+                                },
+                                levels: [{ // Add some styling to make "Other" nodes less prominent
+                                    depth: 0,
+                                    itemStyle: { color: '#3880ff' }, // Emphasize team nodes
+                                    lineStyle: { color: 'source', opacity: 0.6 }
+                                }],
+                            }],
+                        }, true);
+                    };
+
+                    // --- STAGE 4: Attach event listener and trigger initial render ---
+                    slider.addEventListener('input', updateChart);
+                    updateChart(); // Initial render with default settings
+                },
+            }
+        ];
+
         let artifact = null;
         let decodedDefsMap = null;
         let lastParsedData = null;
-        let lastColumns = null;
 
         try {
           statusDiv.textContent = `Fetching artifact: ${ARTIFACT_PATH}...`;
@@ -316,7 +833,11 @@
 
           displayStaticAssets(artifact);
 
-          renderByteSizeBar(artifact, packedBytes.byteLength);
+          renderByteSizeBar(
+            artifact,
+            packedBytes.byteLength,
+            compressedBuffer.byteLength
+          );
 
           const streamNames = Object.keys(schema.streams);
           if (streamNames.length === 0)
@@ -372,7 +893,7 @@
 
             let parsedData;
             if (streamInfo.layout === "row-major-mixed") {
-              const dataBlob = artifact.data[streamInfo.data_key];
+              const dataBlob = artifact.data[streamInfo.data_key]["default"];
               if (!dataBlob)
                 throw new Error(
                   `Data blob not found for key: ${streamInfo.data_key}`
@@ -401,6 +922,8 @@
               streamInfo.columns
             );
 
+            console.log(parsedData)
+
             lastParsedData = parsedData;
             lastColumns = streamInfo.columns;
             // Enable the button if applicable
@@ -418,6 +941,8 @@
               showUnitBtn.disabled = true;
             }
             statusDiv.textContent = `Successfully parsed ${parsedData.length} rows from '${selectedStreamName}'.`;
+
+            setupSandbox(streamInfo.columns, parsedData);
           } catch (error) {
             statusDiv.textContent = `Error processing stream: ${error.message}`;
             console.error("Processing error:", error);
@@ -869,7 +1394,7 @@
           };
 
           const rows = parsedData
-            .slice(0, 1000) // first 100 rows
+            .slice(0, NUM_ROWS_TO_SHOW) // first 100 rows
             .map((row) => {
               const cells = columns
                 .map((col) => `<td>${pretty(row[col.name])}</td>`)
@@ -888,7 +1413,11 @@
           return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}${footer}</tbody></table>`;
         }
 
-        function renderByteSizeBar(artifactData, totalUnpackedMsgPackSize) {
+        function renderByteSizeBar(
+          artifactData,
+          totalUnpackedMsgPackSize,
+          totalPackedSize
+        ) {
           // Pass the whole artifact.data for static assets
           const schema = artifactData.schema;
           const data = artifactData.data; // Get the raw data blobs
@@ -1054,7 +1583,9 @@
               tooltip.style.opacity = "1";
               tooltip.textContent = `${entry.type}: ${
                 entry.name
-              } - ${formatBytes(entry.size)}/${formatBytes(totalUnpackedMsgPackSize)} (${percentOfTotal}%)`;
+              } - ${formatBytes(entry.size)}/${formatBytes(
+                totalUnpackedMsgPackSize
+              )} (${percentOfTotal}%)`;
             });
             segment.addEventListener("mousemove", (e) => {
               tooltip.style.top = `${e.clientY + 10}px`;
@@ -1072,8 +1603,10 @@
           const sortedTextEntries = [...streamEntries].sort(
             (a, b) => Math.abs(b.size) - Math.abs(a.size)
           );
-
-          let breakdownText = `Total Unpacked MessagePack Size (from Zstd): ${formatBytes(
+          let breakdownText = `Total Packed Zstd Size: ${formatBytes(
+            totalPackedSize
+          )}\n`;
+          breakdownText += `Total Unpacked MessagePack Size (from Zstd): ${formatBytes(
             totalUnpackedMsgPackSize
           )}\n`;
           breakdownText += `Sum of Accounted Parts (before discrepancy): ${formatBytes(
@@ -1160,6 +1693,7 @@
         return rows;
       }
 
+
       function getStride(dtype) {
         switch (dtype) {
           case "Int8":
@@ -1181,6 +1715,7 @@
             throw new Error(`Unknown dtype for stride: ${dtype}`);
         }
       }
+
 
       function readViewValue(view, offset, dtype) {
         switch (dtype) {
@@ -1210,6 +1745,8 @@
             throw new Error(`Unknown dtype for DataView: ${dtype}`);
         }
       }
+
+
       function debugCheckForIncompleteColumns(rows, columns) {
         console.group("Column Completeness Debug");
         columns.forEach((col) => {
@@ -1229,6 +1766,7 @@
         });
         console.groupEnd();
       }
+
 
       function initLogBinsButton(artifact) {
         const logBinsButton = document.getElementById("log-bins-button");
@@ -1266,6 +1804,265 @@
           console.groupEnd();
         });
       }
+
+
+      function generateChart(data) {
+        const dimensionCol = document.getElementById("viz-dimension").value;
+        const metricCol = document.getElementById("viz-metric").value;
+        const groupCol = document.getElementById("viz-group").value;
+        const sandboxChartEl = document.getElementById("sandbox-chart");
+
+        if (!dimensionCol || !metricCol) {
+          alert("Please select a Dimension and a Metric.");
+          return;
+        }
+
+        const currentTheme =
+          document.documentElement.getAttribute("data-theme") || "light";
+        if (sandboxChartInstance) sandboxChartInstance.dispose();
+        sandboxChartInstance = echarts.init(sandboxChartEl, currentTheme);
+
+        // AGGREGATE DATA
+        const aggregated = new Map();
+        data.forEach((row) => {
+          const dimKey = row[dimensionCol];
+          const groupKey = groupCol ? row[groupCol] : "default";
+          const metricValue = Number(row[metricCol] || 0);
+
+          const key = `${dimKey}|${groupKey}`;
+          if (!aggregated.has(key)) {
+            aggregated.set(key, { dim: dimKey, group: groupKey, metric: 0 });
+          }
+          aggregated.get(key).metric += metricValue;
+        });
+
+        const chartData = Array.from(aggregated.values());
+
+        // ** THE FIX IS HERE **
+        // We now use `lastColumns` which is available everywhere.
+        const isTimeSeries = lastColumns
+          .find((c) => c.name === dimensionCol)
+          .dtype.includes("Int");
+
+        if (groupCol) {
+          // GROUPED CHART
+          const seriesData = new Map();
+          chartData.forEach((d) => {
+            if (!seriesData.has(d.group)) seriesData.set(d.group, []);
+            seriesData.get(d.group).push({ value: [d.dim, d.metric] });
+          });
+
+          // BigInt-safe sorting for the x-axis categories
+          const dimensions = [...new Set(chartData.map((d) => d.dim))].sort(
+            (a, b) => {
+              if (a < b) return -1;
+              if (a > b) return 1;
+              return 0;
+            }
+          );
+
+          const series = Array.from(seriesData.entries()).map(
+            ([groupName, dataPoints]) => ({
+              name: String(groupName), // Ensure group name is a string for the legend
+              type: isTimeSeries ? "line" : "bar",
+              stack: isTimeSeries ? null : "total",
+              smooth: true,
+              data: dimensions.map((dim) => {
+                const point = dataPoints.find((p) => p.value[0] === dim);
+                return point ? point.value[1] : 0;
+              }),
+            })
+          );
+
+          sandboxChartInstance.setOption({
+            tooltip: { trigger: "axis" },
+            legend: {
+              type: "scroll",
+              data: Array.from(seriesData.keys()).map(String),
+            },
+            xAxis: { type: "category", data: dimensions.map(String) }, // Ensure axis labels are strings
+            yAxis: { type: "value" },
+            series: series,
+          });
+        } else {
+          // SINGLE SERIES CHART
+          // BigInt-safe sorting
+          chartData.sort((a, b) => {
+            if (a.dim < b.dim) return -1;
+            if (a.dim > b.dim) return 1;
+            return 0;
+          });
+
+          sandboxChartInstance.setOption({
+            tooltip: { trigger: "axis" },
+            xAxis: {
+              type: "category",
+              data: chartData.map((d) => String(d.dim)),
+            },
+            yAxis: { type: "value" },
+            series: [
+              {
+                data: chartData.map((d) => d.metric),
+                type: isTimeSeries ? "line" : "bar",
+                smooth: true,
+              },
+            ],
+          });
+        }
+      }
+      
+
+      function setupSandbox(columns, data) {
+        const sandbox = document.getElementById("visualization-sandbox");
+        const btnContainer = document.getElementById("viz-buttons-container");
+        const controlsContainer = document.getElementById("sandbox-controls");
+        const sandboxChartEl = document.getElementById("sandbox-chart");
+
+        btnContainer.innerHTML = "";
+        controlsContainer.innerHTML = ""; // Clear old controls
+        if (sandboxChartInstance) {
+          sandboxChartInstance.dispose();
+          sandboxChartInstance = null;
+        }
+        if (!data || data.length === 0) {
+          sandbox.classList.add("hidden");
+          return;
+        }
+
+        const currentTheme =
+          document.documentElement.getAttribute("data-theme") || "light";
+        sandboxChartInstance = echarts.init(sandboxChartEl, currentTheme);
+
+        VIZ_REGISTRY.forEach((viz) => {
+          if (viz.check(columns)) {
+            const btn = document.createElement("button");
+            btn.textContent = viz.name;
+            btn.onclick = () => {
+              viz.render(data, sandboxChartInstance, controlsContainer);
+            };
+            btnContainer.appendChild(btn);
+          }
+        });
+
+        if (btnContainer.children.length > 0) {
+          sandbox.classList.remove("hidden");
+          // Automatically click the first available visualization button for a good default.
+          btnContainer.children[0].click();
+        } else {
+          sandbox.classList.add("hidden");
+        }
+      }
+      
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const accordions = document.querySelectorAll(".accordion");
+        const toggleAllButton = document.getElementById("toggle-all-button");
+        let hasExpandedOnce = false;
+
+        // Initialize any pre-marked active accordions
+        accordions.forEach((acc) => {
+            console.log(acc)
+          const panel = acc.parentElement.querySelector('.panel');
+          if (acc.classList.contains("active")) {
+            //   panel.style.maxHeight = panel.scrollHeight + "px";
+            panel.style.maxHeight = 500 + "px";
+          }
+        });
+
+        // Individual toggle
+        accordions.forEach((acc) => {
+          acc.addEventListener("click", function () {
+            hasExpandedOnce = true;
+            this.classList.toggle("active");
+          const panel = acc.parentElement.querySelector('.panel');
+            if (panel.style.maxHeight) {
+              panel.style.maxHeight = null;
+            } else {
+              //   panel.style.maxHeight = panel.scrollHeight + "px";
+              panel.style.maxHeight = 500 + "px";
+              panel.style.overflowY = "auto";
+            }
+          });
+        });
+
+        // Global toggle (same as before)
+        toggleAllButton.addEventListener("click", () => {
+          const anyOpen = Array.from(accordions).some((acc) =>
+            acc.classList.contains("active")
+          );
+          if (anyOpen) {
+            accordions.forEach((acc) => {
+              acc.classList.remove("active");
+          const panel = acc.parentElement.querySelector('.panel');
+              panel.style.maxHeight = null;
+              panel.style.overflowY = "auto";
+            });
+            toggleAllButton.textContent = "Expand All";
+          } else {
+            accordions.forEach((acc) => {
+              acc.classList.add("active");
+          const panel = acc.parentElement.querySelector('.panel');
+              //   panel.style.maxHeight = panel.scrollHeight + "px";
+              panel.style.maxHeight = 500 + "px";
+              panel.style.overflowY = "auto";
+            });
+            toggleAllButton.textContent = "Collapse All";
+          }
+        });
+
+        // animate expand on accordion on hover
+        document.querySelectorAll(".panel").forEach((panel) => {
+          panel.addEventListener("mouseenter", () => {
+            const accordion = panel.parentElement.querySelector('.accordion');
+            if (
+              !hasExpandedOnce &&
+              accordion &&
+              accordion.classList.contains("accordion") &&
+              !accordion.classList.contains("active")
+            ) {
+              accordion.classList.add("animate");
+            }
+          });
+          panel.addEventListener("mouseleave", () => {
+            const accordion = panel.parentElement.querySelector('.accordion');
+            if (accordion && accordion.classList.contains("accordion")) {
+              accordion.classList.remove("animate");
+            }
+          });
+        });
+      });
+
+
+      function processDataInChunksAsync(data, chunkProcessor, initialAccumulator, chunkSize = 2000) {
+        return new Promise((resolve) => {
+            let i = 0;
+            const totalRows = data.length;
+            let accumulator = initialAccumulator;
+
+            function runNextChunk() {
+                if (i >= totalRows) {
+                    resolve(accumulator);
+                    return;
+                }
+
+                const chunkEnd = Math.min(i + chunkSize, totalRows);
+                const chunk = data.slice(i, chunkEnd);
+
+                // Run the user-provided logic on the small chunk
+                accumulator = chunkProcessor(chunk, accumulator);
+
+                i = chunkEnd;
+
+                // Yield to the main thread, allowing UI updates (like closing the tab),
+                // then queue the next chunk of work.
+                setTimeout(runNextChunk, 0);
+            }
+
+            // Start the process
+            runNextChunk();
+        });
+    }
+
     </script>
     <script type="module">
       const html = document.documentElement;
@@ -1282,9 +2079,7 @@
       // Update button label based on current theme
       function updateToggleText() {
         const isDark = html.getAttribute("data-theme") === "dark";
-        toggle.textContent = isDark
-          ? "Switch to Light Mode"
-          : "Switch to Dark Mode";
+        toggle.textContent = isDark ? "Light Mode" : "Dark Mode";
       }
       updateToggleText();
 
@@ -1295,6 +2090,31 @@
         html.setAttribute("data-theme", next);
         localStorage.setItem("theme", next);
         updateToggleText();
+      });
+
+      //    View mode
+      const viewModeToggle = document.getElementById("view-mode-toggle");
+
+      const savedViewMode = localStorage.getItem("viewMode") || "Comfort";
+      html.setAttribute("data-viewmode", savedViewMode);
+
+      function updateViewModeToggle() {
+        viewModeToggle.textContent =
+          html.getAttribute("data-viewmode") === "comfort"
+            ? "Detailed"
+            : "Comfort";
+      }
+      updateViewModeToggle();
+
+      viewModeToggle.addEventListener("click", () => {
+        // Flip theme
+        const next =
+          html.getAttribute("data-viewmode") === "comfort"
+            ? "detailed"
+            : "comfort";
+        html.setAttribute("data-viewmode", next);
+        localStorage.setItem("viewMode", next);
+        updateViewModeToggle();
       });
     </script>
   </body>
